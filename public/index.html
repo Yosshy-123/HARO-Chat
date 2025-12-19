@@ -2,89 +2,245 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<title>Safe Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chat</title>
 <style>
-body { font-family:sans-serif; background:#0f1221; color:#e8ebff; margin:0; }
-#messages { height:70vh; overflow:auto; padding:10px; border:1px solid #333; margin-bottom:10px; }
-textarea { width:100%; height:50px; margin-bottom:5px; }
-button { padding:6px 12px; }
+:root{
+  --bg: #0f1221;
+  --panel: #171a2b;
+  --panel-2: #121527;
+  --text: #e8ebff;
+  --muted: #a7b0d6;
+  --accent: #6c8cff;
+  --accent-2: #a46cff;
+  --danger: #ff5b6e;
+  --success: #4cd38a;
+  --warning: #ffd35b;
+  --border: #252a45;
+  --bubble: #1c2040;
+  --bubble-self: #2a356b;
+  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+html, body { height:100%; margin:0; padding:0; }
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  background:
+    radial-gradient(1200px 600px at -10% -10%, rgba(108,140,255,0.18), transparent 60%),
+    radial-gradient(800px 500px at 110% -10%, rgba(164,108,255,0.18), transparent 60%),
+    radial-gradient(900px 500px at 50% 110%, rgba(76,211,138,0.10), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+.app { display:flex; flex-direction:column; height:100dvh; max-width:900px; margin:0 auto; }
+header.appbar {
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px;
+  background: linear-gradient(180deg, rgba(23,26,43,0.9), rgba(23,26,43,0.75));
+  backdrop-filter: blur(10px);
+  border-bottom:1px solid var(--border);
+  box-shadow:var(--shadow);
+}
+.brand { display:flex; align-items:center; gap:10px; }
+.logo { width:28px; height:28px; border-radius:10px;
+  background: conic-gradient(from 210deg, var(--accent), var(--accent-2), var(--success), var(--accent));
+  box-shadow: 0 0 20px rgba(108,140,255,0.45), inset 0 0 20px rgba(255,255,255,0.05);
+}
+.title { font-weight:700; letter-spacing:0.2px; }
+.status { display:flex; align-items:center; gap:8px; font-size:13px; color: var(--muted); }
+.dot { width:10px; height:10px; border-radius:50%; background: var(--warning);
+  box-shadow:0 0 0 4px rgba(255,211,91,0.15); }
+.dot.online { background: var(--success); box-shadow:0 0 0 4px rgba(76,211,138,0.15); }
+.dot.offline { background: var(--danger); box-shadow:0 0 0 4px rgba(255,91,110,0.15); }
+.toolbar { display:flex; gap:8px; }
+button.btn { appearance:none; border:1px solid var(--border); color: var(--text);
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border-radius:10px; padding:8px 12px; font-weight:600; cursor:pointer;
+  transition:transform .06s ease, border-color .2s ease, background .2s ease; }
+button.btn:hover { border-color:#2f3761; }
+button.btn:active { transform: translateY(1px) scale(0.99); }
+.btn.accent { border-color:#2f3761; }
+.btn.danger { border-color:#503046; background: linear-gradient(180deg, #3a1b2a, #321727); color:#ffdbe1; }
+main { flex:1; overflow:auto; padding:14px 12px 0 12px; }
+.messages { display:flex; flex-direction:column; gap:10px; padding-bottom:16px; }
+.msg { display:flex; gap:10px; max-width:92%; transition:transform .2s ease, background .2s ease, box-shadow .2s ease; position:relative; }
+.msg.self { align-self:flex-end; flex-direction:row-reverse; }
+.avatar { width:36px; height:36px; border-radius:10px; background:#1a1f3b;
+  border:1px solid var(--border); display:flex; align-items:center; justify-content:center;
+  color:#b9c3ff; font-weight:700; text-transform:uppercase; }
+.bubble { background: var(--bubble); border:1px solid var(--border); border-radius:14px; padding:10px 12px; box-shadow:var(--shadow); min-width:120px; }
+.self .bubble { background: var(--bubble-self); border-color:#36407a; }
+.meta { display:flex; align-items:center; gap:6px; color: var(--muted); font-size:12px; margin-bottom:6px; }
+.name { font-weight:700; color:#d6dcff; }
+.text { white-space:pre-wrap; word-wrap:break-word; line-height:1.5; color: var(--text); }
+.delete-btn { position:absolute; top:2px; right:2px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px; }
+footer.composer {
+  position:sticky; bottom:0; z-index:10;
+  background: linear-gradient(180deg, rgba(23,26,43,0.75), rgba(18,21,39,0.9));
+  border-top:1px solid var(--border); padding:12px; box-shadow:var(--shadow);
+}
+.row { display:flex; gap:10px; align-items:flex-start; }
+.input { flex:1; display:flex; padding:8px; gap:8px; border:1px solid var(--border); border-radius:var(--radius);
+  background: linear-gradient(180deg, #151936, #10132b); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
+textarea { flex:1; resize:none; border:0; outline:0; background:transparent; color: var(--text); font:inherit; padding:4px 2px; min-height:44px; max-height:160px; }
+.send { display:flex; gap:10px; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(5,6,12,0.55); display:none; align-items:center; justify-content:center; padding:16px; z-index:20; }
+.modal-backdrop.show { display:flex; }
+.modal { width:min(520px,100%); background:#141834; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:16px; display:flex; flex-direction:column; gap:12px; }
+.modal h3 { margin:0; font-size:18px; }
+.field { display:flex; flex-direction:column; gap:8px; }
+.field label { font-size:13px; color: var(--muted); }
+.field input { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; background:#0f1330; color: var(--text); }
+.actions { display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+.kbd { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; background:#121631; border:1px solid var(--border); border-bottom-color:#2a315a; border-radius:8px; padding:2px 6px; color:#c2c9ff; }
+@media (max-width:600px) { .u-box { display:none; } .msg { max-width:100%; } .toolbar { gap:6px; } button.btn { padding:7px 10px; } }
 </style>
 </head>
 <body>
-<h1>Safe Chat</h1>
-<div>オンライン: <span id="userCount">-</span></div>
-<div id="messages"></div>
-<textarea id="messageInput" placeholder="メッセージ"></textarea>
-<button id="sendBtn">送信</button>
+<div class="app">
+  <header class="appbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="title">Chat</div>
+    </div>
+    <div class="status">
+      <div id="connDot" class="dot" title="接続状態"></div>
+      <div id="connText">接続中...</div>
+      <span aria-hidden="true">•</span>
+      <div id="userCount">オンライン: -</div>
+    </div>
+    <div class="toolbar">
+      <button id="openUser" class="btn">プロフィール</button>
+      <button id="openAdmin" class="btn danger">管理</button>
+    </div>
+  </header>
+  <main>
+    <div id="messages" class="messages"></div>
+  </main>
+  <footer class="composer">
+    <div class="row">
+      <div class="input">
+        <div class="u-box">
+          <div class="u-tag"><span>あなた</span><strong id="usernameTag"></strong></div>
+          <button id="editUser" class="btn u-edit">編集</button>
+        </div>
+        <textarea id="messageInput" placeholder="メッセージを入力..."></textarea>
+      </div>
+      <div class="send">
+        <button id="sendBtn" class="btn accent">送信</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div id="userModal" class="modal-backdrop">
+  <div class="modal">
+    <h3>プロフィール</h3>
+    <div class="field">
+      <label for="username">ユーザー名</label>
+      <input id="username" type="text" maxlength="24">
+    </div>
+    <div class="actions">
+      <button id="userSave" class="btn accent">保存</button>
+      <button id="userCancel" class="btn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="adminModal" class="modal-backdrop">
+  <div class="modal">
+    <h3>管理パネル</h3>
+    <div class="field">
+      <label for="adminPass">パスワード</label>
+      <input id="adminPass" type="password">
+    </div>
+    <div class="actions">
+      <button id="clearBtn" class="btn danger">全メッセージ削除</button>
+      <button id="adminClose" class="btn">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-(async()=>{
+(() => {
   const socket = io();
-  // シード値管理
-  let seed = localStorage.getItem('chat_seed');
-  if(!seed){
-    const res = await fetch('/api/register',{method:'POST'}).then(r=>r.json());
-    seed = res.seed;
-    localStorage.setItem('chat_seed', seed);
-  }
-
-  // ユーザー名管理
-  let username = localStorage.getItem('chat_username') || '';
-  if(!username){
-    username = prompt('ユーザー名を入力 (1〜24文字)');
-    username = username.slice(0,24);
-    await fetch('/api/username',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({seed,username})
-    });
-    localStorage.setItem('chat_username', username);
-  }
+  let messages=[],mySeed=null,myName=null;
 
   const el = {
+    connDot: document.getElementById('connDot'),
+    connText: document.getElementById('connText'),
+    userCount: document.getElementById('userCount'),
     messages: document.getElementById('messages'),
     input: document.getElementById('messageInput'),
     send: document.getElementById('sendBtn'),
-    userCount: document.getElementById('userCount')
+    usernameTag: document.getElementById('usernameTag'),
+    userModal: document.getElementById('userModal'),
+    username: document.getElementById('username'),
+    userSave: document.getElementById('userSave'),
+    userCancel: document.getElementById('userCancel'),
+    editUser: document.getElementById('editUser'),
+    adminModal: document.getElementById('adminModal'),
+    adminPass: document.getElementById('adminPass'),
+    clearBtn: document.getElementById('clearBtn'),
+    adminClose: document.getElementById('adminClose'),
+    openUser: document.getElementById('openUser'),
+    openAdmin: document.getElementById('openAdmin')
   };
 
-  // メッセージ取得・描画
-  async function fetchMessages(){
-    const msgs = await fetch('/api/messages').then(r=>r.json());
-    el.messages.innerHTML = '';
-    msgs.forEach(m=>{
-      const div = document.createElement('div');
-      div.textContent = `[${m.time}] ${m.username}: ${m.message}`;
-      el.messages.appendChild(div);
+  const makeSeed=()=>{const arr=new Uint8Array(16);crypto.getRandomValues(arr);return[...arr].map(x=>x.toString(16).padStart(2,'0')).join('');};
+  mySeed=localStorage.getItem('chat_seed')||makeSeed();localStorage.setItem('chat_seed',mySeed);
+  myName=localStorage.getItem('chat_username')||'';
+
+  const initials=name=>(name||'?').slice(0,2).toUpperCase();
+
+  const renderAll=()=>{
+    el.messages.innerHTML='';
+    messages.forEach((msg,i)=>{
+      const wrap=document.createElement('div');wrap.className='msg'+(msg.seed===mySeed?' self':'');wrap.dataset.index=i;
+      const avatar=document.createElement('div');avatar.className='avatar';avatar.textContent=initials(msg.username);
+      const bubble=document.createElement('div');bubble.className='bubble';
+      const meta=document.createElement('div');meta.className='meta';
+      const nameEl=document.createElement('span');nameEl.className='name';nameEl.textContent=msg.username;
+      const dot=document.createElement('span');dot.textContent='•';dot.style.opacity='0.6';
+      const timeEl=document.createElement('span');timeEl.textContent=msg.time;
+      meta.append(nameEl,dot,timeEl);
+      const textEl=document.createElement('div');textEl.className='text';textEl.textContent=msg.message;
+      bubble.append(meta,textEl);
+      if(el.adminPass.value){
+        const delBtn=document.createElement('button');delBtn.className='delete-btn';delBtn.textContent='×';
+        delBtn.addEventListener('click',()=>{socket.emit('deleteMessage',{messageId:i,password:el.adminPass.value});});
+        wrap.appendChild(delBtn);
+      }
+      wrap.appendChild(avatar);wrap.appendChild(bubble);el.messages.appendChild(wrap);
     });
-    el.messages.scrollTop = el.messages.scrollHeight;
-  }
+    el.messages.scrollTop=el.messages.scrollHeight;
+  };
 
-  socket.on('newMessage', m=>{
-    const div = document.createElement('div');
-    div.textContent = `[${m.time}] ${m.username}: ${m.message}`;
-    el.messages.appendChild(div);
-    el.messages.scrollTop = el.messages.scrollHeight;
-  });
-
-  socket.on('updateReaction', ()=>{ fetchMessages(); });
-  socket.on('clearMessages', ()=>{ el.messages.innerHTML=''; });
-  socket.on('userCount', n=>{ el.userCount.textContent=n; });
-
-  fetchMessages();
-
-  el.send.addEventListener('click', async ()=>{
-    const msg = el.input.value.trim();
-    if(!msg) return;
-    const time = new Date().toLocaleString();
-    await fetch('/api/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({seed,message:msg,time})
-    });
+  el.send.addEventListener('click',()=>{
+    const msg=el.input.value.trim();if(!msg)return;
+    if(!myName){el.userModal.classList.add('show');return;}
+    const time=new Date().toLocaleString();
+    socket.emit('sendMessage',{seed:mySeed,username:myName,message:msg,time});
     el.input.value='';
   });
+
+  el.editUser.addEventListener('click',()=>{el.username.value=myName;el.userModal.classList.add('show');});
+  el.openUser.addEventListener('click',()=>{el.username.value=myName;el.userModal.classList.add('show');});
+  el.userSave.addEventListener('click',()=>{const v=el.username.value.trim();if(!v)return;myName=v;localStorage.setItem('chat_username',myName);el.usernameTag.textContent=myName;el.userModal.classList.remove('show');});
+  el.userCancel.addEventListener('click',()=>{el.userModal.classList.remove('show');});
+  el.openAdmin.addEventListener('click',()=>{el.adminModal.classList.add('show');});
+  el.adminClose.addEventListener('click',()=>{el.adminModal.classList.remove('show');});
+  el.clearBtn.addEventListener('click',()=>{socket.emit('clearMessages',{password:el.adminPass.value});});
+
+  socket.on('connect',()=>{el.connDot.className='dot online';el.connText.textContent='オンライン';});
+  socket.on('disconnect',()=>{el.connDot.className='dot offline';el.connText.textContent='切断';});
+  socket.on('updateMessages',data=>{messages=data;renderAll();});
+  socket.on('updateUserCount',n=>{el.userCount.textContent='オンライン: '+n;});
+
 })();
 </script>
 </body>
