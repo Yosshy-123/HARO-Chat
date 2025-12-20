@@ -1,56 +1,55 @@
-require('dotenv').config();
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const { v4: uuidv4 } = require('uuid');
-const cors = require('cors');
-const helmet = require('helmet');
-const xss = require('xss');
-
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+const bodyParser = require('body-parser');
+const cors = require('cors');
 
-app.use(express.json());
-app.use(cors());
-app.use(helmet());
-app.use(express.static('public'));
-
-const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin1234";
 let messages = [];
 
-app.post('/api/deleteMessage', (req, res) => {
-	const { id, key } = req.body;
-	if (key !== SECRET_KEY) return res.status(403).json({ success: false, message: 'Unauthorized' });
-	const index = messages.findIndex(m => m.id === id);
-	if (index === -1) return res.status(404).json({ success: false, message: 'Message not found' });
-	messages.splice(index, 1);
-	io.emit('deleteMessage', id);
-	res.json({ success: true });
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('public'));
+
+app.post('/api/register',(req,res)=>{
+  const seed = [...Array(16)].map(()=>Math.floor(Math.random()*256).toString(16).padStart(2,'0')).join('');
+  res.json({seed});
 });
 
-app.post('/api/deleteAllMessages', (req, res) => {
-	const { key } = req.body;
-	if (key !== SECRET_KEY) return res.status(403).json({ success: false, message: 'Unauthorized' });
-	messages = [];
-	io.emit('deleteAllMessages');
-	res.json({ success: true });
+app.post('/api/username',(req,res)=>{
+  res.json({ok:true});
 });
 
-io.on('connection', (socket) => {
-	socket.emit('init', messages);
-
-	socket.on('sendMessage', (data) => {
-		const cleanMessage = {
-			id: uuidv4(),
-			user: xss(data.user),
-			content: xss(data.content),
-			time: new Date().toISOString()
-		};
-		messages.push(cleanMessage);
-		io.emit('newMessage', cleanMessage);
-	});
+app.get('/api/messages',(req,res)=>{
+  res.json(messages);
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.post('/api/messages',(req,res)=>{
+  const { seed, message, time, username } = req.body;
+  if(!seed || !message || !username) return res.status(400).json({ message:'Invalid' });
+  messages.push({ seed, message, time, username });
+  io.emit('newMessage',{ seed, message, time, username });
+  res.json({ok:true});
+});
+
+app.post('/api/pass',(req,res)=>{
+  const { password, messageId } = req.body;
+  if(password !== ADMIN_PASSWORD) return res.status(403).json({ message:'パスワード違い' });
+  if(typeof messageId==='number' && messages[messageId]){
+    messages.splice(messageId,1);
+    io.emit('clearMessages');
+    return res.json({message:'メッセージ削除しました'});
+  }
+  messages = [];
+  io.emit('clearMessages');
+  res.json({message:'全メッセージ削除しました'});
+});
+
+io.on('connection', socket=>{
+  socket.emit('userCount', io.engine.clientsCount);
+  io.emit('userCount', io.engine.clientsCount);
+  socket.on('disconnect', ()=>{ io.emit('userCount', io.engine.clientsCount); });
+});
+
+http.listen(process.env.PORT||3000);
