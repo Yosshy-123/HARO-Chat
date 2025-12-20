@@ -50,20 +50,36 @@ function formatTime(date) {
 */
 
 function generateToken(clientId) {
+    const timestamp = Date.now();
+    const data = `${clientId}.${timestamp}`;
+
     const hmac = crypto.createHmac('sha256', SECRET_KEY);
-    hmac.update(clientId);
+    hmac.update(data);
     const signature = hmac.digest('hex');
-    return `${clientId}.${signature}`;
+
+    return `${clientId}.${timestamp}.${signature}`;
 }
 
 function verifyToken(token) {
     if (!token) return null;
+
     const parts = token.split('.');
-    if (parts.length !== 2) return null;
-    const [clientId, signature] = parts;
+    if (parts.length !== 3) return null;
+
+    const [clientId, timestampStr, signature] = parts;
+    const timestamp = Number(timestampStr);
+    if (!timestamp) return null;
+
+    const now = Date.now();
+    const MAX_AGE = 5 * 60 * 1000;
+    if (timestamp > now + 60_000) return null;
+    if (now - timestamp > MAX_AGE) return null;
+
+    const data = `${clientId}.${timestamp}`;
     const hmac = crypto.createHmac('sha256', SECRET_KEY);
-    hmac.update(clientId);
+    hmac.update(data);
     const expected = hmac.digest('hex');
+
     return expected === signature ? clientId : null;
 }
 
