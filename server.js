@@ -104,7 +104,7 @@ app.post('/api/clear', (req, res) => {
 
     const now = Date.now();
     const lastTime = lastClearTime.get(ip) || 0;
-    if (now - lastTime < 5000) return res.status(429).json({ error: '削除には5秒以上間隔をあけてください' });
+    if (now - lastTime < 30000) return res.status(429).json({ error: '削除には30秒以上間隔をあけてください' });
     lastClearTime.set(ip, now);
 
     messages = [];
