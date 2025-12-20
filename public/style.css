@@ -112,13 +112,6 @@ main {
 	width: 100%;
 }
 
-.notice {
-	text-align: center;
-	color: var(--muted);
-	font-size: 13px;
-	margin: 8px 0 16px;
-}
-
 .messages {
 	display: flex;
 	flex-direction: column;
