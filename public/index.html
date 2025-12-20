@@ -3,72 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat</title>
-<link rel="stylesheet" href="/style.css">
+<title>Chat App</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
-  <header class="appbar">
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <div class="title">Chat</div>
+<div class="chat-container">
+    <div class="header">
+        <h2>Chat App</h2>
+        <button id="deleteAllBtn">全削除</button>
     </div>
-    <div class="status">
-      <div id="connDot" class="dot" title="接続状態"></div>
-      <div id="connText">接続中...</div>
-    </div>
-  </header>
-
-  <main>
-    <div id="messages" class="messages" aria-live="polite"></div>
-  </main>
-
-  <footer class="composer">
-    <div class="row">
-      <div class="input">
-        <div class="u-box">
-          <div class="u-tag">
-            <span>あなた</span><strong id="usernameTag"></strong>
-          </div>
-          <button id="editUser" class="btn u-edit">編集</button>
-        </div>
-        <textarea id="messageInput" placeholder="メッセージを入力..." maxlength="800"></textarea>
-      </div>
-      <div class="send">
-        <button id="sendBtn" class="btn accent">送信</button>
-      </div>
-    </div>
-  </footer>
+    <div id="messages" class="messages"></div>
+    <form id="chatForm">
+        <input type="text" id="messageInput" placeholder="メッセージを入力">
+        <button type="submit">送信</button>
+    </form>
 </div>
-
 <div id="toast" class="toast"></div>
-
-<div id="userModal" class="modal-backdrop" role="dialog" aria-modal="true">
-  <div class="modal">
-    <h3>プロフィール</h3>
-    <div class="field">
-      <label for="username">ユーザー名</label>
-      <input id="username" type="text" maxlength="24">
-    </div>
-    <div class="actions">
-      <button id="userCancel" class="btn">閉じる</button>
-      <button id="userSave" class="btn accent">保存</button>
-    </div>
-  </div>
-</div>
-
-<div id="deleteModal" class="modal-backdrop" role="dialog" aria-modal="true">
-  <div class="modal">
-    <h3>メッセージ削除</h3>
-    <div class="notice">本当にこのメッセージを削除しますか？</div>
-    <div class="actions">
-      <button id="deleteCancel" class="btn">キャンセル</button>
-      <button id="deleteConfirm" class="btn danger">削除</button>
-    </div>
-  </div>
-</div>
-
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="/client.js"></script>
+<script src="client.js"></script>
 </body>
 </html>
