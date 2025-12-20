@@ -1,73 +1,81 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>はろChat</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>はろChat</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
-    <header class="appbar">
-      <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
-        <div class="title">はろChat</div>
-      </div>
-      <div class="meta">
-        <div class="status">オンライン: <span id="userCount">-</span></div>
-        <div class="controls">
-          <button id="openAdminBtn" class="btn danger">管理</button>
+<div class="app">
+  <header class="appbar">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="title">はろChat</div>
+    </div>
+    <div class="status">
+      <div id="connText">接続中...</div>
+      <div id="userCount">オンライン: -</div>
+    </div>
+    <div class="toolbar">
+      <button id="openUser" class="btn">プロフィール</button>
+      <button id="openAdmin" class="btn danger">管理</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="notice" class="notice">Shift+Enterで改行<br>Enterで送信</div>
+    <div id="messages" class="messages" aria-live="polite"></div>
+    <div id="newMsgIndicator" class="new-indicator">新着メッセージ</div>
+  </main>
+
+  <footer class="composer">
+    <div class="row">
+      <div class="input">
+        <div class="u-box">
+          <div class="u-tag"><span>あなた</span><strong id="usernameTag"></strong></div>
+          <button id="editUser" class="btn u-edit">編集</button>
         </div>
+        <textarea id="messageInput" placeholder="メッセージを入力..." maxlength="800"></textarea>
       </div>
-    </header>
-
-    <main class="main">
-      <div id="messages" class="messages" aria-live="polite" role="log"></div>
-      <div id="newMsgIndicator" class="new-indicator" role="button" tabindex="0" aria-hidden="true">新着メッセージ</div>
-    </main>
-
-    <footer class="composer">
-      <div class="left">
-        <button id="editUserBtn" class="btn ghost">ユーザー名</button>
-      </div>
-      <div class="center">
-        <textarea id="messageInput" placeholder="メッセージを入力" maxlength="800"></textarea>
-      </div>
-      <div class="right">
-        <button id="sendBtn" class="btn primary">送信</button>
-      </div>
-    </footer>
-  </div>
-
-  <div id="userModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
-    <div class="modal">
-      <h3 id="userModalTitle">ユーザー名設定</h3>
-      <div class="field">
-        <label for="usernameInput">ユーザー名（1〜24文字）</label>
-        <input id="usernameInput" type="text" maxlength="24" />
-      </div>
-      <div class="actions">
-        <button id="saveUsernameBtn" class="btn primary">保存</button>
-        <button id="closeUserModalBtn" class="btn ghost">閉じる</button>
+      <div class="send">
+        <button id="sendBtn" class="btn accent">送信</button>
       </div>
     </div>
-  </div>
+  </footer>
+</div>
 
-  <div id="adminModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
-    <div class="modal">
-      <h3 id="adminModalTitle">管理者操作</h3>
-      <div class="field">
-        <label for="adminPassword">管理者パスワード</label>
-        <input id="adminPassword" type="password" autocomplete="current-password" />
-      </div>
-      <div class="actions">
-        <button id="clearAllBtn" class="btn danger">全削除</button>
-        <button id="closeAdminModalBtn" class="btn ghost">閉じる</button>
-      </div>
+<div id="toast" class="toast"></div>
+
+<div id="userModal" class="modal-backdrop">
+  <div class="modal">
+    <h3>プロフィール</h3>
+    <div class="field">
+      <label for="username">ユーザー名（1〜24文字）</label>
+      <input id="username" type="text" maxlength="24" placeholder="例: たろう">
+    </div>
+    <div class="actions">
+      <button id="userCancel" class="btn">閉じる</button>
+      <button id="userSave" class="btn accent">保存</button>
     </div>
   </div>
+</div>
 
-  <script src="socket.io.min.js"></script>
-  <script src="main.js"></script>
+<div id="adminModal" class="modal-backdrop">
+  <div class="modal">
+    <h3>管理パネル</h3>
+    <div class="field">
+      <label for="adminPass">パスワード</label>
+      <input id="adminPass" type="password" placeholder="入力してください">
+    </div>
+    <div class="actions">
+      <button id="adminClose" class="btn">閉じる</button>
+      <button id="clearBtn" class="btn danger">全メッセージ削除</button>
+    </div>
+  </div>
+</div>
+
+<script src="socket.io.min.js"></script>
+<script src="main.js"></script>
 </body>
 </html>
