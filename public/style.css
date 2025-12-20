@@ -131,7 +131,7 @@ main {
 	display: flex;
 	gap: 12px;
 	max-width: 100%;
-	animation: fadeIn 0.25s ease;
+	animation: none;
 }
 
 .msg.self {
@@ -366,11 +366,6 @@ textarea {
 	border: 1px solid var(--border);
 	display: none;
 	box-shadow: var(--shadow);
-}
-
-@keyframes fadeIn {
-	from { opacity: 0; transform: translateY(4px); }
-	to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 600px) {
