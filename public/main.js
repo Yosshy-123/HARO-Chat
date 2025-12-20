@@ -1,244 +1,173 @@
 const socket = io();
 let messages = [];
+let myClientId = null;
 let myName = localStorage.getItem('chat_username') || '';
 
 const el = {
-	container: document.querySelector('main'),
-	messages: document.getElementById('messages'),
-	input: document.getElementById('messageInput'),
-	send: document.getElementById('sendBtn'),
-	usernameTag: document.getElementById('usernameTag'),
-	toast: document.getElementById('toast'),
-	userModal: document.getElementById('userModal'),
-	usernameInput: document.getElementById('username'),
-	userOpen: document.getElementById('openUser'),
-	userCancel: document.getElementById('userCancel'),
-	userSave: document.getElementById('userSave'),
-	adminModal: document.getElementById('adminModal'),
-	adminOpen: document.getElementById('openAdmin'),
-	adminClose: document.getElementById('adminClose'),
-	adminPass: document.getElementById('adminPass'),
-	clearBtn: document.getElementById('clearBtn'),
-	newMsgIndicator: document.getElementById('newMsgIndicator'),
-	connText: document.getElementById('connText'),
-	userCount: document.getElementById('userCount')
+  container: document.querySelector('main'),
+  messages: document.getElementById('messages'),
+  input: document.getElementById('messageInput'),
+  send: document.getElementById('sendBtn'),
+  usernameTag: document.getElementById('usernameTag'),
+  toast: document.getElementById('toast'),
+  userModal: document.getElementById('userModal'),
+  usernameInput: document.getElementById('username'),
+  userOpen: document.getElementById('openUser'),
+  userCancel: document.getElementById('userCancel'),
+  userSave: document.getElementById('userSave'),
+  adminModal: document.getElementById('adminModal'),
+  adminOpen: document.getElementById('openAdmin'),
+  adminClose: document.getElementById('adminClose'),
+  adminPass: document.getElementById('adminPass'),
+  clearBtn: document.getElementById('clearBtn'),
+  newMsgIndicator: document.getElementById('newMsgIndicator'),
+  connText: document.getElementById('connText'),
+  userCount: document.getElementById('userCount')
 };
 
 if (el.usernameTag) el.usernameTag.textContent = myName || '未設定';
-
 let isAutoScroll = true;
 
 function showToast(t, ms = 1800) {
-	if (!el.toast) return;
-	el.toast.textContent = t;
-	el.toast.classList.add('show');
-	clearTimeout(showToast._t);
-	showToast._t = setTimeout(() => el.toast.classList.remove('show'), ms);
+  if (!el.toast) return;
+  el.toast.textContent = t;
+  el.toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.toast.classList.remove('show'), ms);
 }
 
-function nowTime() {
-	const d = new Date();
-	return d.toLocaleString();
-}
-
+function nowTime() { return new Date().toLocaleString(); }
 function atBottom() {
-	const c = el.container || document.documentElement;
-	return c.scrollHeight - c.scrollTop - c.clientHeight < 80;
+  const c = el.container || document.documentElement;
+  return c.scrollHeight - c.scrollTop - c.clientHeight < 80;
 }
-
 function scrollToBottom(smooth = true) {
-	const c = el.container || document.documentElement;
-	c.scrollTo({
-		top: c.scrollHeight,
-		behavior: smooth ? 'smooth' : 'auto'
-	});
+  const c = el.container || document.documentElement;
+  c.scrollTo({ top: c.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
 }
-
 function initials(name) {
-	if (!name) return '?';
-	const s = name.trim().split(/\s+/).map(p => p[0] || '').join('').toUpperCase();
-	return s.slice(0, 2);
+  if (!name) return '?';
+  const s = name.trim().split(/\s+/).map(p => p[0] || '').join('').toUpperCase();
+  return s.slice(0, 2);
 }
-
 function renderMessage(msg) {
-	const wrap = document.createElement('div');
-	wrap.className = 'msg' + ((msg.username === myName) ? ' self' : '');
-	const avatar = document.createElement('div');
-	avatar.className = 'avatar';
-	avatar.textContent = initials(msg.username);
-	const bubble = document.createElement('div');
-	bubble.className = 'bubble';
-	const meta = document.createElement('div');
-	meta.className = 'meta';
-	const nameEl = document.createElement('span');
-	nameEl.className = 'name';
-	nameEl.textContent = msg.username || '匿名';
-	const dot = document.createElement('span');
-	dot.textContent = '•';
-	dot.style.opacity = '0.6';
-	const timeEl = document.createElement('span');
-	timeEl.textContent = msg.time || '';
-	meta.append(nameEl, dot, timeEl);
-	const textEl = document.createElement('div');
-	textEl.className = 'text';
-	textEl.textContent = msg.message || '';
-	bubble.append(meta, textEl);
-	wrap.append(avatar, bubble);
-	return wrap;
+  const wrap = document.createElement('div');
+  wrap.className = 'msg' + ((msg.clientId === myClientId) ? ' self' : '');
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = initials(msg.username);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'name';
+  nameEl.textContent = msg.username || '匿名';
+  const dot = document.createElement('span');
+  dot.textContent = '•';
+  dot.style.opacity = '0.6';
+  const timeEl = document.createElement('span');
+  timeEl.textContent = msg.time || '';
+  meta.append(nameEl, dot, timeEl);
+  const textEl = document.createElement('div');
+  textEl.className = 'text';
+  textEl.textContent = msg.message || '';
+  bubble.append(meta, textEl);
+  wrap.append(avatar, bubble);
+  return wrap;
 }
+
 async function fetchMessages() {
-	try {
-		const res = await fetch('/api/messages', {
-			cache: 'no-store'
-		});
-		if (!res.ok) throw 0;
-		messages = await res.json();
-		if (el.messages) {
-			el.messages.innerHTML = '';
-			for (let i = 0; i < messages.length; i++) {
-				el.messages.appendChild(renderMessage(messages[i]));
-			}
-		}
-		if (isAutoScroll) scrollToBottom(false);
-		else if (el.newMsgIndicator) el.newMsgIndicator.style.display = 'block';
-	} catch {
-		showToast('メッセージ取得に失敗しました');
-	}
+  try {
+    const res = await fetch('/api/messages', { cache: 'no-store' });
+    if (!res.ok) throw 0;
+    messages = await res.json();
+    if (el.messages) {
+      el.messages.innerHTML = '';
+      messages.forEach(msg => el.messages.appendChild(renderMessage(msg)));
+    }
+    if (isAutoScroll) scrollToBottom(false);
+    else if (el.newMsgIndicator) el.newMsgIndicator.style.display = 'block';
+  } catch { showToast('メッセージ取得に失敗しました'); }
 }
+
 async function sendMessage() {
-	const txt = (el.input && el.input.value || '').trim();
-	if (!txt) return;
-	if (!myName) {
-		if (el.userModal) el.userModal.classList.add('show');
-		showToast('ユーザー名を設定してください');
-		return;
-	}
-	try {
-		const payload = {
-			username: myName,
-			message: txt,
-			time: nowTime()
-		};
-		const res = await fetch('/api/messages', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(payload)
-		});
-		if (!res.ok) {
-			const j = await res.json().catch(() => ({}));
-			throw j;
-		}
-		if (el.input) el.input.value = '';
-		await fetchMessages();
-	} catch {
-		showToast('送信に失敗しました');
-	}
+  const txt = (el.input && el.input.value || '').trim();
+  if (!txt) return;
+  if (!myName) { if (el.userModal) el.userModal.classList.add('show'); showToast('ユーザー名を設定してください'); return; }
+  if (!myClientId) { showToast('接続中です'); return; }
+  try {
+    const payload = { username: myName, message: txt, clientId: myClientId };
+    const res = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw await res.json().catch(() => ({}));
+    if (el.input) el.input.value = '';
+    await fetchMessages();
+  } catch { showToast('送信に失敗しました'); }
 }
 
-function openUserModal() {
-	if (el.usernameInput) el.usernameInput.value = myName || '';
-	if (el.userModal) el.userModal.classList.add('show');
-}
+function openUserModal() { if (el.usernameInput) el.usernameInput.value = myName || ''; if (el.userModal) el.userModal.classList.add('show'); }
+function closeUserModal() { if (el.userModal) el.userModal.classList.remove('show'); }
+function openAdminModal() { if (el.adminPass) el.adminPass.value = ''; if (el.adminModal) el.adminModal.classList.add('show'); }
+function closeAdminModal() { if (el.adminModal) el.adminModal.classList.remove('show'); }
 
-function closeUserModal() {
-	if (el.userModal) el.userModal.classList.remove('show');
-}
-
-function openAdminModal() {
-	if (el.adminPass) el.adminPass.value = '';
-	if (el.adminModal) el.adminModal.classList.add('show');
-}
-
-function closeAdminModal() {
-	if (el.adminModal) el.adminModal.classList.remove('show');
-}
 async function clearAllMessages() {
-	const p = el.adminPass && el.adminPass.value || '';
-	if (!p) {
-		showToast('パスワードを入力してください');
-		return;
-	}
-	try {
-		const res = await fetch('/api/clear', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				password: p
-			})
-		});
-		const j = await res.json().catch(() => ({}));
-		if (!res.ok) throw j;
-		showToast(j.message || '全メッセージ削除しました');
-		closeAdminModal();
-		await fetchMessages();
-	} catch {
-		showToast('削除に失敗しました');
-	}
+  const p = el.adminPass && el.adminPass.value || '';
+  if (!p) { showToast('パスワードを入力してください'); return; }
+  try {
+    const res = await fetch('/api/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: p })
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw j;
+    showToast(j.message || '全メッセージ削除しました');
+    closeAdminModal();
+    await fetchMessages();
+  } catch { showToast('削除に失敗しました'); }
 }
+
 if (el.send) el.send.addEventListener('click', sendMessage);
-if (el.input) el.input.addEventListener('keydown', e => {
-	if (e.key === 'Enter' && !e.shiftKey) {
-		e.preventDefault();
-		sendMessage();
-	}
-});
+if (el.input) el.input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 if (el.userOpen) el.userOpen.addEventListener('click', openUserModal);
 if (el.userCancel) el.userCancel.addEventListener('click', closeUserModal);
 if (el.userSave) el.userSave.addEventListener('click', async () => {
-	const v = (el.usernameInput && el.usernameInput.value || '').trim().slice(0, 24);
-	if (!v) {
-		showToast('ユーザー名は1〜24文字で設定してください');
-		return;
-	}
-	myName = v;
-	localStorage.setItem('chat_username', myName);
-	if (el.usernameTag) el.usernameTag.textContent = myName;
-	closeUserModal();
-	showToast('プロフィールを保存しました');
-	await fetchMessages();
+  const v = (el.usernameInput && el.usernameInput.value || '').trim().slice(0, 24);
+  if (!v) { showToast('ユーザー名は1〜24文字で設定してください'); return; }
+  myName = v; localStorage.setItem('chat_username', myName);
+  if (el.usernameTag) el.usernameTag.textContent = myName;
+  closeUserModal(); showToast('プロフィールを保存しました'); await fetchMessages();
 });
 if (el.adminOpen) el.adminOpen.addEventListener('click', openAdminModal);
 if (el.adminClose) el.adminClose.addEventListener('click', closeAdminModal);
 if (el.clearBtn) el.clearBtn.addEventListener('click', clearAllMessages);
+
 if (el.container) {
-	el.container.addEventListener('scroll', () => {
-		isAutoScroll = atBottom();
-		if (isAutoScroll && el.newMsgIndicator) el.newMsgIndicator.style.display = 'none';
-	});
+  el.container.addEventListener('scroll', () => {
+    isAutoScroll = atBottom();
+    if (isAutoScroll && el.newMsgIndicator) el.newMsgIndicator.style.display = 'none';
+  });
 }
-if (el.newMsgIndicator) {
-	el.newMsgIndicator.addEventListener('click', () => {
-		scrollToBottom(true);
-		el.newMsgIndicator.style.display = 'none';
-	});
-}
-socket.on('connect', () => {
-	if (el.connText) el.connText.textContent = 'オンライン';
-});
-socket.on('disconnect', () => {
-	if (el.connText) el.connText.textContent = '切断';
-});
+if (el.newMsgIndicator) el.newMsgIndicator.addEventListener('click', () => { scrollToBottom(true); el.newMsgIndicator.style.display = 'none'; });
+
+socket.on('connect', () => { if (el.connText) el.connText.textContent = 'オンライン'; });
+socket.on('disconnect', () => { if (el.connText) el.connText.textContent = '切断'; });
+socket.on('assignId', id => { myClientId = id; });
 socket.on('newMessage', msg => {
-	messages.push(msg);
-	if (el.messages) el.messages.appendChild(renderMessage(msg));
-	if (isAutoScroll) scrollToBottom(true);
-	else if (el.newMsgIndicator) el.newMsgIndicator.style.display = 'block';
+  messages.push(msg);
+  if (el.messages) el.messages.appendChild(renderMessage(msg));
+  if (isAutoScroll) scrollToBottom(true);
+  else if (el.newMsgIndicator) el.newMsgIndicator.style.display = 'block';
 });
-socket.on('clearMessages', () => {
-	messages = [];
-	if (el.messages) el.messages.innerHTML = '';
-	showToast('全メッセージ削除されました');
-});
+socket.on('clearMessages', () => { messages = []; if (el.messages) el.messages.innerHTML = ''; showToast('全メッセージ削除されました'); });
 socket.on('userCount', d => {
-	if (!d) return;
-	if (typeof d === 'number' || typeof d === 'string') {
-		if (el.userCount) el.userCount.textContent = `オンライン: ${d}`;
-	} else if (typeof d === 'object' && d.userCount !== undefined) {
-		if (el.userCount) el.userCount.textContent = `オンライン: ${d.userCount}`;
-	}
+  if (!d) return;
+  if (typeof d === 'number' || typeof d === 'string') { if (el.userCount) el.userCount.textContent = `オンライン: ${d}`; }
+  else if (typeof d === 'object' && d.userCount !== undefined) { if (el.userCount) el.userCount.textContent = `オンライン: ${d.userCount}`; }
 });
+
 fetchMessages();
