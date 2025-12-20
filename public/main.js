@@ -1,237 +1,49 @@
-(async () => {
-	const socket = io();
-	let seed = localStorage.getItem('chat_seed');
-	if (!seed) {
-		const res = await fetch('/api/register', {
-			method: 'POST'
-		}).then(r => r.json());
-		seed = res.seed;
-		localStorage.setItem('chat_seed', seed);
-	}
+const socket = io();
+let messages = [];
+let myName = localStorage.getItem('chat_username') || '';
+const el = {
+  messages: document.getElementById('messages'),
+  input: document.getElementById('messageInput'),
+  send: document.getElementById('sendBtn'),
+  usernameTag: document.getElementById('usernameTag'),
+  toast: document.getElementById('toast'),
+  userModal: document.getElementById('userModal'),
+  usernameInput: document.getElementById('username'),
+  userOpen: document.getElementById('openUser'),
+  userCancel: document.getElementById('userCancel'),
+  userSave: document.getElementById('userSave'),
+  adminModal: document.getElementById('adminModal'),
+  adminOpen: document.getElementById('openAdmin'),
+  adminClose: document.getElementById('adminClose'),
+  adminPass: document.getElementById('adminPass'),
+  clearBtn: document.getElementById('clearBtn'),
+  newMsgIndicator: document.getElementById('newMsgIndicator')
+};
+let isAutoScroll = true;
 
-	let username = localStorage.getItem('chat_username') || '';
-
-	const el = {
-		messages: document.getElementById('messages'),
-		messageInput: document.getElementById('messageInput'),
-		sendBtn: document.getElementById('sendBtn'),
-		editUserBtn: document.getElementById('editUserBtn'),
-		userModal: document.getElementById('userModal'),
-		usernameInput: document.getElementById('usernameInput'),
-		saveUsernameBtn: document.getElementById('saveUsernameBtn'),
-		closeUserModalBtn: document.getElementById('closeUserModalBtn'),
-		adminModal: document.getElementById('adminModal'),
-		openAdminBtn: document.getElementById('openAdminBtn'),
-		closeAdminModalBtn: document.getElementById('closeAdminModalBtn'),
-		adminPassword: document.getElementById('adminPassword'),
-		clearAllBtn: document.getElementById('clearAllBtn'),
-		userCount: document.getElementById('userCount'),
-		newIndicator: document.getElementById('newMsgIndicator'),
-		mainContainer: document.querySelector('.main')
-	};
-
-	let isAutoScroll = true;
-
-	function initials(name) {
-		if (!name) return '?';
-		return name.trim().split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
-	}
-
-	const observer = new ResizeObserver(() => {
-		if (isAutoScroll) scrollToBottom(false);
-	});
-	observer.observe(el.messages);
-
-	el.mainContainer.addEventListener('scroll', () => {
-		const threshold = 96;
-		const pos = el.mainContainer.scrollHeight - el.mainContainer.scrollTop - el.mainContainer.clientHeight;
-		isAutoScroll = pos <= threshold;
-		if (isAutoScroll) hideNewIndicator();
-	});
-
-	function showNewIndicator() {
-		el.newIndicator.style.display = 'block';
-		el.newIndicator.setAttribute('aria-hidden', 'false');
-	}
-
-	function hideNewIndicator() {
-		el.newIndicator.style.display = 'none';
-		el.newIndicator.setAttribute('aria-hidden', 'true');
-	}
-	el.newIndicator.addEventListener('click', () => {
-		scrollToBottom(true);
-		hideNewIndicator();
-	});
-
-	function scrollToBottom(smooth = true) {
-		el.mainContainer.scrollTo({
-			top: el.mainContainer.scrollHeight,
-			behavior: smooth ? 'smooth' : 'auto'
-		});
-	}
-
-	function showUserModal() {
-		el.usernameInput.value = username;
-		el.userModal.classList.add('show');
-	}
-
-	function hideUserModal() {
-		el.userModal.classList.remove('show');
-	}
-
-	function showAdminModal() {
-		el.adminPassword.value = '';
-		el.adminModal.classList.add('show');
-	}
-
-	function hideAdminModal() {
-		el.adminModal.classList.remove('show');
-	}
-
-	el.editUserBtn.addEventListener('click', showUserModal);
-	el.closeUserModalBtn.addEventListener('click', hideUserModal);
-	el.saveUsernameBtn.addEventListener('click', async () => {
-		const v = el.usernameInput.value.trim().slice(0, 24);
-		if (!v) return;
-		await fetch('/api/username', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				seed,
-				username: v
-			})
-		});
-		username = v;
-		localStorage.setItem('chat_username', username);
-		hideUserModal();
-		await fetchMessages(true);
-	});
-
-	el.openAdminBtn.addEventListener('click', showAdminModal);
-	el.closeAdminModalBtn.addEventListener('click', hideAdminModal);
-	el.clearAllBtn.addEventListener('click', async () => {
-		await fetch('/api/pass', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				password: el.adminPassword.value
-			})
-		});
-		hideAdminModal();
-	});
-
-	async function renderMessage(m, i) {
-		const wrapper = document.createElement('div');
-		wrapper.className = 'msg' + (m.seed === seed ? ' self' : '');
-		const avatar = document.createElement('div');
-		avatar.className = 'avatar';
-		avatar.textContent = initials(m.username);
-		const bubble = document.createElement('div');
-		bubble.className = 'bubble';
-		const meta = document.createElement('div');
-		meta.className = 'metaLine';
-		const nameEl = document.createElement('div');
-		nameEl.className = 'name';
-		nameEl.textContent = m.username || '匿名';
-		const timeEl = document.createElement('div');
-		timeEl.className = 'time';
-		timeEl.textContent = m.time || '';
-		meta.appendChild(nameEl);
-		meta.appendChild(timeEl);
-		const text = document.createElement('div');
-		text.className = 'text';
-		text.textContent = m.message || '';
-		bubble.appendChild(meta);
-		bubble.appendChild(text);
-		wrapper.appendChild(avatar);
-		wrapper.appendChild(bubble);
-		if (el.adminPassword.value) {
-			const del = document.createElement('button');
-			del.className = 'delete-btn';
-			del.type = 'button';
-			del.textContent = '×';
-			del.addEventListener('click', async () => {
-				await fetch('/api/pass', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						password: el.adminPassword.value,
-						messageId: i
-					})
-				});
-			});
-			wrapper.appendChild(del);
-		}
-		return wrapper;
-	}
-
-	async function fetchMessages(triggeredBySocket = false) {
-		const res = await fetch('/api/messages', {
-			cache: 'no-store'
-		});
-		const msgs = await res.json();
-		el.messages.innerHTML = '';
-		for (let i = 0; i < msgs.length; i++) {
-			const node = await renderMessage(msgs[i], i);
-			el.messages.appendChild(node);
-		}
-		if (isAutoScroll) scrollToBottom(!triggeredBySocket);
-		else if (!triggeredBySocket) showNewIndicator();
-	}
-
-	socket.on('newMessage', () => {
-		if (isAutoScroll) fetchMessages(true);
-		else {
-			fetchMessages(false);
-			showNewIndicator();
-		}
-	});
-	socket.on('clearMessages', () => {
-		fetchMessages();
-	});
-	socket.on('userCount', n => {
-		el.userCount.textContent = n;
-	});
-
-	await fetchMessages();
-
-	el.sendBtn.addEventListener('click', async () => {
-		const msg = el.messageInput.value.trim();
-		if (!msg) return;
-		const time = new Date().toLocaleString();
-		await fetch('/api/messages', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				seed,
-				message: msg,
-				time,
-				username
-			})
-		});
-		el.messageInput.value = '';
-		await fetchMessages(true);
-	});
-
-	el.messageInput.addEventListener('keydown', e => {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			el.sendBtn.click();
-		}
-	});
-
-	window.addEventListener('beforeunload', e => {
-		if (el.messageInput.value.trim()) {
-			e.preventDefault();
-			e.returnValue = '';
-		}
-	});
-})();
+function sanitize(text){return String(text||'');}
+function showToast(msg, ms=1800){el.toast.textContent=msg;el.toast.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>el.toast.classList.remove('show'),ms);}
+function nowTime(){const d=new Date();return d.toLocaleString();}
+function scrollToBottom(smooth){el.messages.scrollTo({top:el.messages.scrollHeight,behavior:smooth?'smooth':'auto'});}
+function atBottom(){return el.messages.scrollHeight-el.messages.scrollTop-el.messages.clientHeight<80;}
+function renderMessage(msg){const wrap=document.createElement('div');wrap.className='msg'+(msg.username===myName?' self':'');const avatar=document.createElement('div');avatar.className='avatar';avatar.textContent=msg.username.slice(0,2).toUpperCase();const bubble=document.createElement('div');bubble.className='bubble';const meta=document.createElement('div');meta.className='meta';const nameEl=document.createElement('span');nameEl.className='name';nameEl.textContent=sanitize(msg.username);const dot=document.createElement('span');dot.textContent='•';dot.style.opacity='0.6';const timeEl=document.createElement('span');timeEl.textContent=sanitize(msg.time);meta.append(nameEl,dot,timeEl);const textEl=document.createElement('div');textEl.className='text';textEl.textContent=sanitize(msg.message);bubble.append(meta,textEl);wrap.append(avatar,bubble);return wrap;}
+function renderAll(){el.messages.innerHTML='';messages.forEach(m=>el.messages.appendChild(renderMessage(m)));if(isAutoScroll)scrollToBottom(false);}
+async function fetchMessages(){try{const res=await fetch('/api/messages');messages=await res.json();renderAll();}catch{showToast('メッセージ取得失敗');}}
+async function sendMessage(){const txt=el.input.value.trim();if(!txt){return;}if(!myName){openUserModal();showToast('ユーザー名を設定してください');return;}try{const res=await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:myName,message:txt})});if(!res.ok){const j=await res.json();throw j;}el.input.value='';fetchMessages();}catch{showToast('送信失敗');}}
+function openUserModal(){el.usernameInput.value=myName||'';el.userModal.classList.add('show');}
+function closeUserModal(){el.userModal.classList.remove('show');}
+function openAdminModal(){el.adminPass.value='';el.adminModal.classList.add('show');el.adminPass.focus();}
+function closeAdminModal(){el.adminModal.classList.remove('show');}
+async function clearAllMessages(){const p=el.adminPass.value;if(!p){showToast('パスワード入力');return;}try{const res=await fetch('/api/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})});const j=await res.json();if(!res.ok)throw j;showToast(j.message||'削除しました');el.adminModal.classList.remove('show');fetchMessages();}catch{showToast('削除失敗');}}
+el.send.addEventListener('click',sendMessage);
+el.input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+el.userOpen.addEventListener('click',openUserModal);
+el.userCancel.addEventListener('click',closeUserModal);
+el.userSave.addEventListener('click',()=>{const v=el.usernameInput.value.trim();if(!v||v.length>24){showToast('1〜24文字で設定');return;}myName=v;localStorage.setItem('chat_username',myName);el.usernameTag.textContent=myName;closeUserModal();showToast('保存');});
+el.adminOpen.addEventListener('click',openAdminModal);
+el.adminClose.addEventListener('click',closeAdminModal);
+el.clearBtn.addEventListener('click',clearAllMessages);
+el.messages.addEventListener('scroll',()=>{isAutoScroll=atBottom();if(isAutoScroll)el.newMsgIndicator.style.display='none';});
+socket.on('connect',()=>{fetchMessages();});
+socket.on('newMessage',msg=>{messages.push(msg);renderAll();if(!atBottom())el.newMsgIndicator.style.display='block';});
+socket.on('clearMessages',()=>{messages=[];renderAll();showToast('全メッセージ削除されました');});
