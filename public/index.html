@@ -1,59 +1,61 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Chat</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>min2 Chat</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<header>
-  <div class="title">Chat</div>
-  <div>オンライン: <span id="userCount">-</span></div>
-  <button id="openAdminBtn" class="admin-btn">管理</button>
-</header>
-
-<main>
-  <div id="messages" class="messages"></div>
-</main>
-
-<footer>
-  <textarea id="messageInput" placeholder="メッセージを入力"></textarea>
-  <button id="sendBtn">送信</button>
-  <button id="editUserBtn">ユーザー名設定</button>
-</footer>
-
-<div id="userModal" class="modal-backdrop">
-  <div class="modal">
-    <h3>ユーザー名設定</h3>
-    <div class="field">
-      <label for="usernameInput">ユーザー名</label>
-      <input id="usernameInput" type="text" maxlength="24">
+  <header>
+    <div class="title">min2 Chat</div>
+    <div class="status">
+      <span id="connText">接続中...</span>
+      <span id="userCount">オンライン: -</span>
     </div>
-    <div class="actions">
-      <button id="saveUsernameBtn">保存</button>
-      <button id="closeUserModalBtn">閉じる</button>
-    </div>
-  </div>
-</div>
+  </header>
 
-<div id="adminModal" class="modal-backdrop">
-  <div class="modal">
-    <h3>管理者操作</h3>
-    <div class="field">
-      <label for="adminPassword">管理者パスワード</label>
-      <input id="adminPassword" type="password">
-    </div>
-    <div class="actions">
-      <button id="clearAllBtn">全削除</button>
-      <button id="closeAdminModalBtn">閉じる</button>
+  <main>
+    <div id="messages" class="messages" aria-live="polite" aria-busy="true"></div>
+  </main>
+
+  <footer>
+    <textarea id="messageInput" placeholder="メッセージを入力..." maxlength="800"></textarea>
+    <button id="sendBtn">送信</button>
+  </footer>
+
+  <div id="newNotice" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- プロフィールモーダル -->
+  <div id="userModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3>プロフィール</h3>
+      <div class="field">
+        <label for="username">ユーザー名</label>
+        <input id="username" type="text" maxlength="24" placeholder="例: たろう">
+      </div>
+      <div class="actions">
+        <button id="userCancel">閉じる</button>
+        <button id="userSave">保存</button>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="client.js"></script>
+  <div id="adminModal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3>管理パネル</h3>
+      <div class="field">
+        <label for="adminPass">パスワード</label>
+        <input id="adminPass" type="password" placeholder="入力してください">
+      </div>
+      <div class="actions">
+        <button id="adminClose">閉じる</button>
+        <button id="clearBtn" class="admin-btn">全メッセージ削除</button>
+      </div>
+    </div>
+  </div>
 
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
