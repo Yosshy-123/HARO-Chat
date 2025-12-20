@@ -1,2 +1,2 @@
-# Server-Chat
+# はろChat
 Chat
