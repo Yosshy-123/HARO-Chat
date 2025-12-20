@@ -165,10 +165,6 @@ main {
 	transition: transform 0.1s ease, background 0.2s ease;
 }
 
-.bubble:hover {
-	transform: translateY(-1px);
-}
-
 .self .bubble {
 	background: var(--bubble-self);
 	border-color: #3e4685;
