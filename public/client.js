@@ -1,78 +1,66 @@
-const socket = io();
-const messagesEl = document.getElementById('messages');
-const sendBtn = document.getElementById('sendBtn');
-const messageInput = document.getElementById('messageInput');
-const clearAllBtn = document.getElementById('clearAllBtn');
-const toastEl = document.getElementById('toast');
-
-const SECRET_KEY = 'your-secret-key';
-
-function showToast(msg, type='success') {
-	toastEl.textContent = msg;
-	toastEl.style.backgroundColor = type === 'success' ? 'var(--success)' : 'var(--danger)';
-	toastEl.classList.add('show');
-	setTimeout(() => toastEl.classList.remove('show'), 2000);
-}
-
-function createMessageEl(message) {
-	const el = document.createElement('div');
-	el.className = 'msg';
-	el.id = message.id;
-	el.innerHTML = `
-		<div class="avatar">${message.user.charAt(0).toUpperCase()}</div>
-		<div class="bubble">
-			<div class="meta"><span class="name">${message.user}</span> <span>${new Date(message.time).toLocaleTimeString()}</span></div>
-			<div class="text">${message.content}</div>
-			<div class="reactions">
-				<button class="btn danger deleteBtn">削除</button>
-			</div>
-		</div>
-	`;
-	const deleteBtn = el.querySelector('.deleteBtn');
-	deleteBtn.addEventListener('click', async () => {
-		const res = await fetch('/api/deleteMessage', {
-			method: 'POST',
-			headers: {'Content-Type':'application/json'},
-			body: JSON.stringify({id: message.id, key: SECRET_KEY})
-		});
-		const data = await res.json();
-		if(data.success) showToast('メッセージ削除成功');
-		else showToast(data.message,'error');
-	});
-	return el;
-}
-
-socket.on('init', (msgs) => {
-	messagesEl.innerHTML = '';
-	msgs.forEach(msg => messagesEl.appendChild(createMessageEl(msg)));
-});
-
-socket.on('newMessage', (msg) => {
-	messagesEl.appendChild(createMessageEl(msg));
-	messagesEl.scrollTop = messagesEl.scrollHeight;
-});
-
-socket.on('deleteMessage', (id) => {
-	const el = document.getElementById(id);
-	if(el) el.remove();
-});
-
-socket.on('deleteAllMessages', () => messagesEl.innerHTML = '');
-
-sendBtn.addEventListener('click', () => {
-	const content = messageInput.value.trim();
-	if(!content) return;
-	socket.emit('sendMessage', {user: 'User', content});
-	messageInput.value = '';
-});
-
-clearAllBtn.addEventListener('click', async () => {
-	const res = await fetch('/api/deleteAllMessages', {
-		method:'POST',
-		headers:{'Content-Type':'application/json'},
-		body: JSON.stringify({key: SECRET_KEY})
-	});
-	const data = await res.json();
-	if(data.success) showToast('全メッセージ削除成功');
-	else showToast(data.message,'error');
-});
+(async()=>{
+  const socket = io();
+  let seed = localStorage.getItem('chat_seed');
+  if(!seed){ const res=await fetch('/api/register',{method:'POST'}).then(r=>r.json()); seed=res.seed; localStorage.setItem('chat_seed',seed);}
+  let username = localStorage.getItem('chat_username')||'';
+  const el={
+    messages:document.getElementById('messages'),
+    input:document.getElementById('messageInput'),
+    send:document.getElementById('sendBtn'),
+    editUserBtn:document.getElementById('editUserBtn'),
+    userModal:document.getElementById('userModal'),
+    usernameInput:document.getElementById('usernameInput'),
+    saveUsernameBtn:document.getElementById('saveUsernameBtn'),
+    closeUserModalBtn:document.getElementById('closeUserModalBtn'),
+    adminModal:document.getElementById('adminModal'),
+    openAdminBtn:document.getElementById('openAdminBtn'),
+    closeAdminModalBtn:document.getElementById('closeAdminModalBtn'),
+    adminPassword:document.getElementById('adminPassword'),
+    clearAllBtn:document.getElementById('clearAllBtn'),
+    userCount:document.getElementById('userCount')
+  };
+  function showUserModal(){ el.usernameInput.value=username; el.userModal.classList.add('show'); }
+  function hideUserModal(){ el.userModal.classList.remove('show'); }
+  function showAdminModal(){ el.adminPassword.value=''; el.adminModal.classList.add('show'); }
+  function hideAdminModal(){ el.adminModal.classList.remove('show'); }
+  el.editUserBtn.addEventListener('click',showUserModal);
+  el.closeUserModalBtn.addEventListener('click',hideUserModal);
+  el.saveUsernameBtn.addEventListener('click',async()=>{
+    username=el.usernameInput.value.trim().slice(0,24);
+    if(username==='') return;
+    await fetch('/api/username',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seed,username})});
+    localStorage.setItem('chat_username',username);
+    hideUserModal();
+    fetchMessages();
+  });
+  el.openAdminBtn.addEventListener('click',showAdminModal);
+  el.closeAdminModalBtn.addEventListener('click',hideAdminModal);
+  el.clearAllBtn.addEventListener('click',async()=>{
+    await fetch('/api/pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:el.adminPassword.value})});
+    hideAdminModal();
+  });
+  async function fetchMessages(){
+    const msgs=await fetch('/api/messages').then(r=>r.json());
+    el.messages.innerHTML='';
+    msgs.forEach((m,i)=>{
+      const div=document.createElement('div'); div.className='msg'+(m.seed===seed?' self':''); 
+      const bubble=document.createElement('div'); bubble.className='bubble'; bubble.textContent=`[${m.time}] ${m.username}: ${m.message}`;
+      if(el.adminPassword.value){
+        const btn=document.createElement('button'); btn.className='delete-btn'; btn.textContent='×';
+        btn.addEventListener('click',async()=>{ await fetch('/api/pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:el.adminPassword.value,messageId:i})}); });
+        div.appendChild(btn);
+      }
+      div.appendChild(bubble); el.messages.appendChild(div);
+    });
+    el.messages.scrollTop=el.messages.scrollHeight;
+  }
+  socket.on('newMessage',()=>fetchMessages());
+  socket.on('clearMessages',()=>fetchMessages());
+  socket.on('userCount',n=>el.userCount.textContent=n);
+  fetchMessages();
+  el.send.addEventListener('click',async()=>{
+    const msg=el.input.value.trim(); if(!msg) return; const time=new Date().toLocaleString();
+    await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seed,message:msg,time,username})}); el.input.value='';
+  });
+  el.input.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); el.send.click(); } });
+})();
