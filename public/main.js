@@ -1,4 +1,5 @@
-const socket = io();
+const SERVER_URL = window.location.origin.replace(/\/$/, ''); // サーバーのURLを定義
+const socket = io(SERVER_URL);
 let messages = [];
 let myToken = localStorage.getItem('chatToken') || '';
 let myName = localStorage.getItem('chat_username') || '';
@@ -103,7 +104,7 @@ function renderMessage(msg) {
 
 async function fetchMessages() {
 	try {
-		const res = await fetch('/api/messages', {
+		const res = await fetch(`${SERVER_URL}/api/messages`, {
 			cache: 'no-store'
 		});
 		if (!res.ok) throw 0;
@@ -137,7 +138,7 @@ async function sendMessage() {
 			message: txt,
 			token: myToken
 		};
-		const res = await fetch('/api/messages', {
+		const res = await fetch(`${SERVER_URL}/api/messages`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -179,7 +180,7 @@ async function clearAllMessages() {
 		return;
 	}
 	try {
-		const res = await fetch('/api/clear', {
+		const res = await fetch(`${SERVER_URL}/api/clear`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
