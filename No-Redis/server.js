@@ -91,8 +91,9 @@ function verifyToken(token) {
 app.get('/api/messages', (req, res) => res.json(messages));
 
 app.post('/api/messages', (req, res) => {
-    const { username, message, token } = req.body;
-    if (!username || !message || !token) return res.status(400).json({ error: 'Invalid data' });
+    const { username, message, token, seed } = req.body;
+    if (!username || !message || !token || !seed)
+        return res.status(400).json({ error: 'Invalid data' });
     if (typeof username !== 'string' || username.length === 0 || username.length > 24)
         return res.status(400).json({ error: 'Username length invalid' });
     if (typeof message !== 'string' || message.length === 0 || message.length > 800)
@@ -110,7 +111,8 @@ app.post('/api/messages', (req, res) => {
         username, 
         message, 
         time: formatTime(new Date()), 
-        clientId 
+        clientId,
+		seed 
     };
     messages.push(msg);
     if (messages.length > 100) messages.shift();
