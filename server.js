@@ -223,7 +223,6 @@ io.on('connection', async socket => {
         const verifiedId = await verifyToken(token);
         if (!verifiedId) {
             socket.emit('authFailed', { error: 'Invalid or expired token' });
-            notify(socket, 'トークンが無効です。再認証してください', 'warning');
             return;
         }
         socket.data = socket.data || {};
