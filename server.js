@@ -104,7 +104,12 @@ async function verifyToken(token) {
 app.get('/api/messages', async (req, res) => {
     try {
         const raw = await redis.lrange('messages', 0, -1);
-        const messages = raw.map(JSON.parse);
+        const messages = raw.map(JSON.parse).map(m => ({
+            username: m.username,
+            message: m.message,
+            time: m.time,
+            seed: m.seed
+        }));
         res.json(messages);
     } catch (e) {
         console.error(e);
@@ -133,18 +138,25 @@ app.post('/api/messages', async (req, res) => {
     }
     await redis.set(rateKey, now, 'PX', 2000);
 
-    const msg = { 
+    const storedMsg = { 
         username, 
         message, 
         time: formatTime(new Date()), 
         clientId,
-		seed 
+        seed 
     };
     try {
-        await redis.rpush('messages', JSON.stringify(msg));
+        await redis.rpush('messages', JSON.stringify(storedMsg));
         await redis.ltrim('messages', -100, -1);
 
-        io.emit('newMessage', msg);
+        const publicMsg = {
+            username: storedMsg.username,
+            message: storedMsg.message,
+            time: storedMsg.time,
+            seed: storedMsg.seed
+        };
+
+        io.emit('newMessage', publicMsg);
         res.json({ ok: true });
     } catch (e) {
         console.error(e);
@@ -155,9 +167,10 @@ app.post('/api/messages', async (req, res) => {
 app.post('/api/refresh-token', async (req, res) => {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: 'No token provided' });
-    const parts = token.split('.');
-    if (parts.length !== 3) return res.status(400).json({ error: 'Invalid token format' });
-    const clientId = parts[0];
+    const clientId = await verifyToken(token);
+    if (!clientId) {
+        return res.status(403).json({ error: 'Invalid or expired token' });
+    }
     const newToken = generateToken(clientId);
     await redis.set(`token:${clientId}`, newToken, 'PX', 5 * 60 * 1000);
 
@@ -207,14 +220,14 @@ io.on('connection', async socket => {
     io.emit('userCount', Number(count));
 
     socket.on('authenticate', async ({ token }) => {
-        let verifiedId = await verifyToken(token);
+        const verifiedId = await verifyToken(token);
         if (!verifiedId) {
-            const newToken = generateToken(token.split('.')[0]);
-            await redis.set(`token:${token.split('.')[0]}`, newToken, 'PX', 5 * 60 * 1000);
-            socket.emit('assignToken', newToken);
-            notify(socket, 'トークンが再発行されました。再度送信してください', 'warning');
+            socket.emit('authFailed', { error: 'Invalid or expired token' });
+            notify(socket, 'トークンが無効です。再認証してください', 'warning');
             return;
         }
+        socket.data = socket.data || {};
+        socket.data.clientId = verifiedId;
     });
 
     socket.on('disconnect', async () => {
