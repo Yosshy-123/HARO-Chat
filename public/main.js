@@ -135,6 +135,29 @@ async function fetchMessages() {
 	}
 }
 
+async function refreshToken() {
+	try {
+		const res = await fetch(`${SERVER_URL}/api/refresh-token`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				token: myToken
+			})
+		});
+		const data = await res.json();
+		if (!res.ok) throw new Error(data.error || 'Token refresh failed');
+		myToken = data.token;
+		localStorage.setItem('chatToken', myToken);
+		return true;
+	} catch (e) {
+		console.error('Token refresh failed', e);
+		showToast('トークンの更新に失敗しました');
+		return false;
+	}
+}
+
 async function sendMessage() {
 	const txt = (el.input && el.input.value || '').trim();
 	if (!txt) return;
@@ -147,28 +170,47 @@ async function sendMessage() {
 		showToast('接続中です');
 		return;
 	}
+
+	const payload = {
+		username: myName,
+		message: txt,
+		token: myToken,
+		seed: mySeed
+	};
+
 	try {
-		const payload = {
-			username: myName,
-			message: txt,
-			token: myToken,
-			seed: mySeed
-		};
-		const res = await fetch(`${SERVER_URL}/api/messages`, {
+		let res = await fetch(`${SERVER_URL}/api/messages`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify(payload)
 		});
-		const data = await res.json().catch(() => ({}));
+		let data = await res.json().catch(() => ({}));
+
+		if (res.status === 403 && data.error === 'Invalid token') {
+			const ok = await refreshToken();
+			if (!ok) return;
+			payload.token = myToken;
+			res = await fetch(`${SERVER_URL}/api/messages`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+			data = await res.json().catch(() => ({}));
+		}
+
 		if (!res.ok) {
 			showToast(data.error || '送信に失敗しました');
 			return;
 		}
+
 		if (el.input) el.input.value = '';
 		await fetchMessages();
-	} catch {
+	} catch (e) {
+		console.error(e);
 		showToast('送信に失敗しました');
 	}
 }
@@ -266,13 +308,42 @@ if (el.input) {
 	});
 }
 
-socket.on('connect', () => {
+async function sendTokenToSocket() {
+	if (!myToken) return;
+	socket.emit('authenticate', {
+		token: myToken
+	});
+}
+
+socket.on('connect', async () => {
 	if (el.connText) el.connText.textContent = 'オンライン';
 	if (el.connDot) {
 		el.connDot.classList.remove('offline');
 		el.connDot.classList.add('online');
 	}
+	if (myToken) {
+		let ok = true;
+		try {
+			await sendTokenToSocket();
+		} catch {
+			ok = await refreshToken();
+			if (ok) await sendTokenToSocket();
+		}
+	}
 });
+
+socket.on('reconnect', async () => {
+	if (myToken) {
+		let ok = true;
+		try {
+			await sendTokenToSocket();
+		} catch {
+			ok = await refreshToken();
+			if (ok) await sendTokenToSocket();
+		}
+	}
+});
+
 socket.on('disconnect', () => {
 	if (el.connText) el.connText.textContent = '切断';
 	if (el.connDot) {
