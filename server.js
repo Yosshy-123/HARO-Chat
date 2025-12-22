@@ -207,6 +207,14 @@ io.on('connection', async socket => {
     const count = await redis.get('connections');
     io.emit('userCount', Number(count));
 
+    socket.on('authenticate', async ({ token }) => {
+        const verifiedId = await verifyToken(token);
+        if (!verifiedId) {
+            socket.emit('notify', 'トークンが無効です。再接続してください');
+            return;
+        }
+    });
+
     socket.on('disconnect', async () => {
         await redis.decr('connections');
         const count = await redis.get('connections');
