@@ -158,10 +158,9 @@ app.post('/api/refresh-token', async (req, res) => {
     const parts = token.split('.');
     if (parts.length !== 3) return res.status(400).json({ error: 'Invalid token format' });
     const clientId = parts[0];
-    const stored = await redis.get(`token:${clientId}`);
-    if (!stored) return res.status(403).json({ error: 'Token expired' });
     const newToken = generateToken(clientId);
     await redis.set(`token:${clientId}`, newToken, 'PX', 5 * 60 * 1000);
+
     res.json({ token: newToken });
 });
 
@@ -208,9 +207,12 @@ io.on('connection', async socket => {
     io.emit('userCount', Number(count));
 
     socket.on('authenticate', async ({ token }) => {
-        const verifiedId = await verifyToken(token);
+        let verifiedId = await verifyToken(token);
         if (!verifiedId) {
-            socket.emit('notify', 'トークンが無効です。再接続してください');
+            const newToken = generateToken(token.split('.')[0]);
+            await redis.set(`token:${token.split('.')[0]}`, newToken, 'PX', 5 * 60 * 1000);
+            socket.emit('assignToken', newToken);
+            notify(socket, 'トークンが再発行されました。再度送信してください', 'warning');
             return;
         }
     });
