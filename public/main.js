@@ -283,6 +283,15 @@ socket.on('clearMessages', () => {
 	if (el.messages) el.messages.innerHTML = '';
 	showToast('全メッセージ削除されました');
 });
+socket.on('notify', data => {
+	if (!data) return;
+	const msg =
+		typeof data === 'string'
+			? data
+			: data.message;
+	if (!msg) return;
+	showToast(msg);
+});
 socket.on('userCount', d => {
 	if (!d) return;
 	if (typeof d === 'number' || typeof d === 'string') {
