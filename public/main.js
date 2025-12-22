@@ -37,7 +37,6 @@ const el = {
 	adminClose: document.getElementById('adminClose'),
 	adminPass: document.getElementById('adminPass'),
 	clearBtn: document.getElementById('clearBtn'),
-	newMsgIndicator: document.getElementById('newMsgIndicator'),
 	connText: document.getElementById('connText'),
 	connDot: document.getElementById('connDot'),
 	userCount: document.getElementById('userCount')
@@ -130,7 +129,6 @@ async function fetchMessages() {
 			messages.forEach(msg => el.messages.appendChild(renderMessage(msg)));
 		}
 		if (isAutoScroll) scrollToBottom(false);
-		else if (el.newMsgIndicator) el.newMsgIndicator.style.display = 'block';
 	} catch {
 		showToast('メッセージ取得に失敗しました');
 	}
@@ -208,7 +206,7 @@ async function clearAllMessages() {
 		});
 		const j = await res.json().catch(() => ({}));
 		if (!res.ok) throw j;
-		showToast(j.message || '全メッセージ削除しました');
+		showToast(j.message || '全てのメッセージを削除しました');
 		closeAdminModal();
 		focusInput();
 		await fetchMessages();
@@ -254,11 +252,6 @@ if (el.input) {
 	if (el.clearBtn) el.clearBtn.addEventListener('click', clearAllMessages);
 	if (el.container) el.container.addEventListener('scroll', () => {
 		isAutoScroll = atBottom();
-		if (isAutoScroll && el.newMsgIndicator) el.newMsgIndicator.style.display = 'none';
-	});
-	if (el.newMsgIndicator) el.newMsgIndicator.addEventListener('click', () => {
-		scrollToBottom(true);
-		el.newMsgIndicator.style.display = 'none';
 	});
 }
 
@@ -284,7 +277,6 @@ socket.on('newMessage', msg => {
 	messages.push(msg);
 	if (el.messages) el.messages.appendChild(renderMessage(msg));
 	if (isAutoScroll) scrollToBottom(true);
-	else if (el.newMsgIndicator) el.newMsgIndicator.style.display = 'block';
 });
 socket.on('clearMessages', () => {
 	messages = [];
