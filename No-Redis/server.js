@@ -129,9 +129,6 @@ app.post('/api/refresh-token', (req, res) => {
     if (parts.length !== 3) return res.status(400).json({ error: 'Invalid token format' });
 
     const clientId = parts[0];
-    const stored = tokens.get(clientId);
-    if (!stored || stored !== token) return res.status(403).json({ error: 'Token expired' });
-
     const newToken = generateToken(clientId);
     tokens.set(clientId, newToken);
     res.json({ token: newToken });
@@ -161,9 +158,13 @@ io.on('connection', socket => {
     io.emit('userCount', io.engine.clientsCount);
 
     socket.on('authenticate', ({ token }) => {
-        const verifiedId = verifyToken(token);
+        let verifiedId = verifyToken(token);
         if (!verifiedId || tokens.get(verifiedId) !== token) {
-            socket.emit('notify', 'トークンが無効です。再接続してください');
+            const clientId = token.split('.')[0];
+            const newToken = generateToken(clientId);
+            tokens.set(clientId, newToken);
+            socket.emit('assignToken', newToken);
+            socket.emit('notify', 'トークンが再発行されました。再度送信してください');
             return;
         }
     });
