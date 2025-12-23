@@ -238,6 +238,10 @@ io.on('connection', socket => {
 
 resetTokensIfMonthChanged();
 
+app.get('*', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+
 server.listen(PORT, () =>
     console.log(`Server running on port ${PORT}`)
 );
