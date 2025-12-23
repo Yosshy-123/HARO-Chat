@@ -47,7 +47,7 @@ npm install
 ```env
 REDIS_URL=redis://<ホスト>:<ポート>
 
-# 任意
+# 任意（推奨）
 ADMIN_PASS=<管理者パスワード>
 SECRET_KEY=<トークン用シークレットキー>
 ```
