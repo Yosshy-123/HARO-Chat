@@ -24,6 +24,38 @@ const redis = new Redis(process.env.REDIS_URL);
 redis.on('connect', () => console.log('Redis connected'));
 redis.on('error', err => console.error('Redis error', err));
 
+async function resetTokensIfMonthChanged() {
+    const now = new Date();
+    const currentMonth =
+        now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+
+    const savedMonth = await redis.get('token:current_month');
+    if (savedMonth === currentMonth) return;
+
+    const lockKey = 'token:reset_lock';
+    const locked = await redis.set(lockKey, '1', 'NX', 'EX', 10);
+    if (!locked) return;
+
+    try {
+        console.log('[Token] Month changed, clearing all tokens');
+
+        const stream = redis.scanStream({
+            match: 'token:*',
+            count: 100
+        });
+
+        for await (const keys of stream) {
+            if (keys.length) {
+                await redis.del(...keys);
+            }
+        }
+
+        await redis.set('token:current_month', currentMonth);
+    } finally {
+        await redis.del(lockKey);
+    }
+}
+
 const app = express();
 app.set('trust proxy', true);
 const server = http.createServer(app);
@@ -84,11 +116,6 @@ async function verifyToken(token) {
     const [clientId, timestampStr, signature] = parts;
     const timestamp = Number(timestampStr);
     if (!timestamp) return null;
-
-    const now = Date.now();
-    const MAX_AGE = 5 * 60 * 1000;
-    if (timestamp > now + 60_000) return null;
-    if (now - timestamp > MAX_AGE) return null;
 
     const data = `${clientId}.${timestamp}`;
     const hmac = crypto.createHmac('sha256', SECRET_KEY);
@@ -164,19 +191,6 @@ app.post('/api/messages', async (req, res) => {
     }
 });
 
-app.post('/api/refresh-token', async (req, res) => {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'No token provided' });
-    const clientId = await verifyToken(token);
-    if (!clientId) {
-        return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    const newToken = generateToken(clientId);
-    await redis.set(`token:${clientId}`, newToken, 'PX', 5 * 60 * 1000);
-
-    res.json({ token: newToken });
-});
-
 app.post('/api/clear', async (req, res) => {
     const { password } = req.body;
     const ip = req.ip;
@@ -203,15 +217,12 @@ app.post('/api/clear', async (req, res) => {
 });
 
 io.on('connection', async socket => {
+    await resetTokensIfMonthChanged();
+
     const clientId = crypto.randomUUID();
     const token = generateToken(clientId);
 
-    await redis.set(
-        `token:${clientId}`,
-        token,
-        'PX',
-        5 * 60 * 1000
-    );
+    await redis.set(`token:${clientId}`, token);
 
     socket.emit('assignToken', token);
 
@@ -236,4 +247,10 @@ io.on('connection', async socket => {
     });
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+resetTokensIfMonthChanged()
+    .catch(err => console.error('Token reset failed', err))
+    .finally(() => {
+        server.listen(PORT, () =>
+            console.log(`Server running on port ${PORT}`)
+        );
+    });
