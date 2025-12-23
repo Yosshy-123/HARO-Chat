@@ -1,8 +1,12 @@
 const SERVER_URL = window.location.origin.replace(/\/$/, ''); // サーバーのURLを定義
 const path = location.pathname.split('/').filter(Boolean);
-const roomId = (path[0] === 'room' && path[1]) ? path[1] : 'open';
-if (!path[1]) {
-    location.replace(`/room/${roomId}`);
+let roomId = path[1] || 'open';
+if (!/^[a-zA-Z0-9_-]{1,32}$/.test(roomId)) {
+    roomId = 'open';
+    location.replace('/room/open');
+}
+if (path[0] !== 'room' || !roomId) {
+    location.replace('/room/open');
 }
 const socket = io(SERVER_URL);
 let messages = [];
