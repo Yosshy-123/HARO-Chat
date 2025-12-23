@@ -1,9 +1,9 @@
 const SERVER_URL = window.location.origin.replace(/\/$/, ''); // サーバーのURLを定義
 const path = location.pathname.split('/').filter(Boolean);
-const roomId =
-	path[0] === 'room' && path[1]
-		? path[1]
-		: 'lobby';
+if (path[0] !== 'room' || !path[1]) {
+    location.replace('/room/open');
+}
+const roomId = path[1] || 'open';
 const socket = io(SERVER_URL);
 let messages = [];
 let myToken = localStorage.getItem('chatToken') || '';
