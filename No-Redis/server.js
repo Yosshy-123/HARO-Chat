@@ -30,6 +30,7 @@ let messages = [];
 const lastMessageTime = new Map();
 const lastClearTime = new Map();
 const tokens = new Map();
+let currentTokenMonth = null;
 
 function formatTime(date) {
     // UTCベースで9時間足してJSTに変換
@@ -55,6 +56,18 @@ function formatTime(date) {
 }
 */
 
+function resetTokensIfMonthChanged() {
+    const now = new Date();
+    const month =
+        now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+
+    if (currentTokenMonth !== month) {
+        console.log('[Token] Month changed, clearing all tokens');
+        tokens.clear();
+        currentTokenMonth = month;
+    }
+}
+
 function generateToken(clientId) {
     const timestamp = Date.now();
     const data = `${clientId}.${timestamp}`;
@@ -75,11 +88,6 @@ function verifyToken(token) {
     const [clientId, timestampStr, signature] = parts;
     const timestamp = Number(timestampStr);
     if (!timestamp) return null;
-
-    const now = Date.now();
-    const MAX_AGE = 5 * 60 * 1000;
-    if (timestamp > now + 60_000) return null;
-    if (now - timestamp > MAX_AGE) return null;
 
     const data = `${clientId}.${timestamp}`;
     const hmac = crypto.createHmac('sha256', SECRET_KEY);
@@ -138,20 +146,6 @@ app.post('/api/messages', (req, res) => {
     res.json({ ok: true });
 });
 
-app.post('/api/refresh-token', (req, res) => {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'No token provided' });
-
-    const clientId = verifyToken(token);
-    if (!clientId || tokens.get(clientId) !== token) {
-        return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-
-    const newToken = generateToken(clientId);
-    tokens.set(clientId, newToken);
-    res.json({ token: newToken });
-});
-
 app.post('/api/clear', (req, res) => {
     const { password } = req.body;
     const ip = req.ip;
@@ -168,6 +162,7 @@ app.post('/api/clear', (req, res) => {
 });
 
 io.on('connection', socket => {
+	resetTokensIfMonthChanged();
     const clientId = crypto.randomUUID();
     const token = generateToken(clientId);
     tokens.set(clientId, token);
@@ -189,4 +184,8 @@ io.on('connection', socket => {
     socket.on('disconnect', () => io.emit('userCount', io.engine.clientsCount));
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+resetTokensIfMonthChanged();
+
+server.listen(PORT, () =>
+    console.log(`Server running on port ${PORT}`)
+);
