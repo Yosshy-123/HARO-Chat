@@ -394,17 +394,6 @@ textarea {
 	transition: border 0.2s ease, box-shadow 0.2s ease;
 }
 
-.room-selector button {
-	border: 1px solid var(--accent);
-	background: linear-gradient(180deg, #4c6eff, #6c8cff);
-	color: #fff;
-	border-radius: var(--radius);
-	padding: 8px 16px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: all 0.15s ease;
-}
-
 @media (max-width: 820px) {
 
 	html,
