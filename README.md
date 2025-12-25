@@ -31,8 +31,8 @@ Node.js (v22 以上推奨) がインストールされた環境で動作しま�
 
 ### 1. リポジトリをクローン
 ```bash
-git clone https://github.com/Yosshy-123/HARO-Chat.git
-cd HARO-Chat
+git clone https://github.com/Yosshy-123/KAeRU-Log.git
+cd KAeRU-Log
 ```
 
 ### 2. 依存パッケージをインストール
