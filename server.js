@@ -103,7 +103,7 @@ function generateToken(clientId) {
     return `${clientId}.${timestamp}.${signature}`;
 }
 
-async function verifyToken(token) {
+async function verifyToken(token, clientIp) {
     if (!token) return null;
 
     const parts = token.split('.');
@@ -119,8 +119,19 @@ async function verifyToken(token) {
     const expected = hmac.digest('hex');
 
     if (expected !== signature) return null;
-    const stored = await redis.get(`token:${clientId}`);
-    if (stored !== token) return null;
+
+    const storedRaw = await redis.get(`token:${clientId}`);
+    if (!storedRaw) return null;
+
+    let stored;
+    try {
+        stored = JSON.parse(storedRaw);
+    } catch {
+        return null;
+    }
+
+    if (stored.token !== token) return null;
+    if (stored.ip !== clientIp) return null;
     return clientId;
 }
 
@@ -158,8 +169,8 @@ app.post('/api/messages', async (req, res) => {
     if (typeof message !== 'string' || message.length === 0 || message.length > 800)
         return res.status(400).json({ error: 'Message length invalid' });
 
-    const clientId = await verifyToken(token);
-    if (!clientId) return res.status(403).json({ error: 'Invalid token' });
+    const clientId = await verifyToken(token, req.ip);
+    if (!clientId) return res.status(403).json({ error: 'Invalid token or IP mismatch' });
 
     const now = Date.now();
     const rateKey = `ratelimit:msg:${clientId}`;
@@ -230,13 +241,23 @@ app.post('/api/clear', async (req, res) => {
 
 io.on('connection', socket => {
     socket.on('authenticate', async ({ token }) => {
-        let clientId = token ? await verifyToken(token) : null;
+        let clientId = token ? await verifyToken(token, socket.handshake.address) : null;
         let assignedToken = null;
+        const clientIp = socket.handshake.address;
 
         if (!clientId) {
             clientId = crypto.randomUUID();
             assignedToken = generateToken(clientId);
-            await redis.set(`token:${clientId}`, assignedToken, 'EX', 60 * 60 * 24);
+
+            await redis.set(`token:${clientId}`, JSON.stringify({ token: assignedToken, ip: clientIp }), 'EX', 60 * 60 * 24);
+
+            const countKey = `ipTokenCount:${clientIp}`;
+            const count = await redis.incr(countKey);
+            await redis.expire(countKey, 3600);
+
+            if (count > 30) {
+                console.warn(`[RateLimit] IP ${clientIp} generated ${count} tokens in the last hour`);
+            }
         }
 
         socket.data = socket.data || {};
