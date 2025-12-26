@@ -13,7 +13,6 @@ try {
 /*
 RenderでデプロイするのでRedisを使用
 必ず.envファイルにREDIS_URLを定義すること
-Redisを使用しない場合は、No-Redisフォルダを確認すること
 */
 if (!process.env.REDIS_URL) {
     console.error('REDIS_URL is not set');
