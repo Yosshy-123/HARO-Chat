@@ -115,7 +115,7 @@ async function validateAuthToken(token) {
 	if (!timestamp) return null;
 
 	const data = `${clientId}.${timestamp}`;
-	const hmac = crypto.createHmac('sha256', TOKEN_SECRET);
+	const hmac = crypto.createHmac('sha256', SECRET_KEY);
 	hmac.update(data);
 	const expectedSignature = hmac.digest('hex');
 
