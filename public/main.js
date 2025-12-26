@@ -185,14 +185,14 @@
 			const data = await res.json().catch(() => ({}));
 
 			if (!res.ok) {
-				if (res.status === 403) {
-					myToken = '';
-					localStorage.removeItem('chatToken');
-					showToast('再接続してください');
-				} else {
-					showToast(data.error || '送信に失敗しました');
-				}
-				return;
+  			  if (res.status === 403) {
+   			     myToken = '';
+     			   localStorage.removeItem('chatToken');
+     			   console.warn('Token invalid, please reconnect.');
+  			  } else {
+   			     console.warn('HTTP error:', data.error);
+ 			   }
+  			  return;
 			}
 
 			if (el.input) el.input.value = '';
