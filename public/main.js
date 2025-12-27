@@ -156,8 +156,9 @@
 	async function loadMessageHistory() {
 		try {
 			const res = await fetch(
-				`${SERVER_URL}/api/messages/${encodeURIComponent(roomId)}`,
-				{ cache: 'no-store' }
+				`${SERVER_URL}/api/messages/${encodeURIComponent(roomId)}`, {
+					cache: 'no-store'
+				}
 			);
 			if (!res.ok) throw 0;
 
@@ -202,7 +203,9 @@
 		try {
 			const res = await fetch(`${SERVER_URL}/api/messages`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json'
+				},
 				body: JSON.stringify(payload)
 			});
 
@@ -258,10 +261,13 @@
 		try {
 			const res = await fetch(`${SERVER_URL}/api/clear`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json'
+				},
 				body: JSON.stringify({
 					password,
-					roomId
+					roomId,
+					token: myToken
 				})
 			});
 
@@ -350,7 +356,9 @@
 	}
 
 	function joinRoom() {
-		socket.emit('joinRoom', { roomId });
+		socket.emit('joinRoom', {
+			roomId
+		});
 	}
 
 	socket.on('connect', () => {
@@ -359,11 +367,15 @@
 			elements.connectionIndicator.classList.remove('offline');
 			elements.connectionIndicator.classList.add('online');
 		}
-		socket.emit('authenticate', { token: myToken || '' });
+		socket.emit('authenticate', {
+			token: myToken || ''
+		});
 	});
 
 	socket.on('reconnect', () => {
-		socket.emit('authenticate', { token: myToken || '' });
+		socket.emit('authenticate', {
+			token: myToken || ''
+		});
 	});
 
 	socket.on('disconnect', () => {
