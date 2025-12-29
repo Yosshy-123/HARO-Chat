@@ -65,6 +65,15 @@ const ADMIN_PASS = process.env.ADMIN_PASS || 'adminkey1234';
 const SECRET_KEY = process.env.SECRET_KEY || 'supersecretkey1234';
 const PORT = process.env.PORT || 3000;
 
+/* ---------------- Logging ---------------- */
+function logUserAction(clientId, action, extra = {}) {
+  const time = formatJSTTime(new Date());
+  const username = extra.username ? ` [Username:${extra.username}]` : '';
+  const info = { ...extra };
+  delete info.username;
+  console.log(`[${time}] [User:${clientId}]${username} Action: ${action}`, info);
+}
+
 /*
   クライアントへ通知送信
 */
@@ -257,6 +266,13 @@ app.post('/api/messages', async (req, res) => {
 			seed
 		});
 
+		logUserAction(clientId, 'sendMessage', {
+			roomId,
+			username: storedMessage.username,
+			message: storedMessage.message,
+			seed
+		});
+
 		res.json({ ok: true });
 	} catch (err) {
 		console.error(err);
@@ -306,7 +322,7 @@ app.post('/api/clear', async (req, res) => {
 /* ---------------- Socket.IO ---------------- */
 
 io.on('connection', socket => {
-	socket.on('authenticate', async ({ token }) => {
+	socket.on('authenticate', async ({ token, username }) => {
 		const now = Date.now();
 		const ip =
 			socket.handshake.headers['x-forwarded-for']
@@ -339,6 +355,11 @@ io.on('connection', socket => {
 			socket.data.clientId = clientId;
 		}
 
+		socket.data.clientId = clientId;
+		socket.data.username = username ? escapeHTML(username) : '';
+
+		logUserAction(clientId, 'authenticated', { username: socket.data.username });
+
 		socket.emit('authenticated');
 		socket.join(clientId);
 	});
@@ -358,6 +379,11 @@ io.on('connection', socket => {
 		socket.join(roomId);
 		socket.data.roomId = roomId;
 
+ 		logUserAction(socket.data.clientId, 'joinRoom', {
+			roomId,
+			username: socket.data.username
+		});
+
 		const roomSize = io.sockets.adapter.rooms.get(roomId)?.size || 0;
 		io.to(roomId).emit('roomUserCount', roomSize);
 
@@ -370,6 +396,12 @@ io.on('connection', socket => {
 			const roomSize =
 				(io.sockets.adapter.rooms.get(roomId)?.size || 1) - 1;
 			io.to(roomId).emit('roomUserCount', roomSize);
+		}
+		if (socket.data?.clientId) {
+			logUserAction(socket.data.clientId, 'disconnecting', { 
+				roomId,
+				username: socket.data.username
+			});
 		}
 	});
 });
