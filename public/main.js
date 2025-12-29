@@ -368,13 +368,15 @@
 			elements.connectionIndicator.classList.add('online');
 		}
 		socket.emit('authenticate', {
-			token: myToken || ''
+			token: myToken || '',
+			username: myName || ''
 		});
 	});
 
 	socket.on('reconnect', () => {
 		socket.emit('authenticate', {
-			token: myToken || ''
+			token: myToken || '',
+			username: myName || ''
 		});
 	});
 
