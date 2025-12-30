@@ -145,7 +145,7 @@
 
 		const textEl = document.createElement('div');
 		textEl.className = 'message-text';
-		textEl.textContent = msg.message || '';
+		textEl.innerHTML = msg.message || '';
 
 		bubble.append(meta, textEl);
 		wrap.append(avatar, bubble);
