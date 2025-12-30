@@ -12,6 +12,9 @@ KAeRU Log is a lightweight chat application built using Node.js.
 
 ```
 ./
+├─ .github/
+│   ├─ README.md
+│   └─ README.ja.md
 ├─ public/
 │   ├─ index.html
 │   ├─ main.js
@@ -23,7 +26,6 @@ KAeRU Log is a lightweight chat application built using Node.js.
 │   └─ favicon-96x96.png
 ├─ server.js
 ├─ package.json
-├─ README.md
 └─ LICENSE
 ```
 
