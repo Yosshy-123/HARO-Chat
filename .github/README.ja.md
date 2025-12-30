@@ -1,5 +1,9 @@
 # KAeRU Log
 
+[Read in English](README.md)
+
+---
+
 KAeRU Log は、Node.js を使って構築した軽量チャットアプリです。  
 
 ---
@@ -8,6 +12,9 @@ KAeRU Log は、Node.js を使って構築した軽量チャットアプリで�
 
 ```
 ./
+├─ .github/
+│   ├─ README.md
+│   └─ README.ja.md
 ├─ public/
 │   ├─ index.html
 │   ├─ main.js
@@ -19,7 +26,6 @@ KAeRU Log は、Node.js を使って構築した軽量チャットアプリで�
 │   └─ favicon-96x96.png
 ├─ server.js
 ├─ package.json
-├─ README.md
 └─ LICENSE
 ```
 
