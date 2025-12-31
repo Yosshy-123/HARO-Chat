@@ -27,69 +27,67 @@ redisClient.on('error', function (err) {
     console.error('Redis error', err);
 });
 
-/* ---------------- 月が変わったらRedisをリセット ---------------- */
-async function resetRedisIfMonthChanged() {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-    const savedMonth = await redisClient.get('system:current_month');
-    if (savedMonth === currentMonth) return;
-
-    const lockKey = 'system:reset_lock';
-    const locked = await redisClient.set(lockKey, '1', 'NX', 'EX', 30);
-    if (!locked) return;
-
-    try {
-        console.log('[Redis] Month changed, FLUSHDB start');
-
-        const keys = await redisClient.keys('messages:*');
-        const targetRoomIds = [];
-
-        for (const key of keys) {
-            const messages = await redisClient.lrange(key, 0, -1);
-
-            const hasUserMessage = messages.some(m => {
-                try {
-                    const parsed = JSON.parse(m);
-                    return parsed.clientId && parsed.clientId !== 'system';
-                } catch {
-                    return false;
-                }
-            });
-
-            if (hasUserMessage) {
-                targetRoomIds.push(key.replace('messages:', ''));
-            }
-        }
-
-        await redisClient.flushdb();
-        await redisClient.set('system:current_month', currentMonth);
-
-        const systemMessage = createSystemMessage(
-            '<strong>メンテナンスのためメッセージなどがリセットされました</strong>'
-        );
-
-        for (const roomId of targetRoomIds) {
-            const roomSize = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-            if (roomSize === 0) continue;
-            io.to(roomId).emit('newMessage', {
-                username: systemMessage.username,
-                message: systemMessage.message,
-                time: systemMessage.time,
-                seed: systemMessage.seed
-            });
-        }
-
-        console.log('[Redis] FLUSHDB completed');
-    } catch (err) {
-        console.error('[Redis] FLUSHDB failed', err);
-    }
-}
-
-/* ---------------- 毎月0:00 JSTにRedisをリセット ---------------- */
-function scheduleMonthlyReset() {
+/* ---------------- 月次Redisリセット ---------------- */
+async function monthlyRedisReset(io) {
     const now = new Date();
     const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const currentMonth = `${jstNow.getFullYear()}-${String(jstNow.getMonth() + 1).padStart(2, '0')}`;
+
+    try {
+        const savedMonth = await redisClient.get('system:current_month');
+
+        if (savedMonth !== currentMonth) {
+            const lockKey = 'system:reset_lock';
+            const locked = await redisClient.set(lockKey, '1', 'NX', 'EX', 30);
+
+            if (locked) {
+                console.log('[Redis] Month changed, FLUSHDB start');
+
+                const keys = await redisClient.keys('messages:*');
+                const targetRoomIds = [];
+
+                for (const key of keys) {
+                    const messages = await redisClient.lrange(key, 0, -1);
+
+                    const hasUserMessage = messages.some(m => {
+                        try {
+                            const parsed = JSON.parse(m);
+                            return parsed.clientId && parsed.clientId !== 'system';
+                        } catch {
+                            return false;
+                        }
+                    });
+
+                    if (hasUserMessage) {
+                        targetRoomIds.push(key.replace('messages:', ''));
+                    }
+                }
+
+                await redisClient.flushdb();
+                await redisClient.set('system:current_month', currentMonth);
+
+                const systemMessage = createSystemMessage(
+                    '<strong>メンテナンスのためメッセージなどがリセットされました</strong>'
+                );
+
+                for (const roomId of targetRoomIds) {
+                    const roomSize = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+                    if (roomSize === 0) continue;
+
+                    io.to(roomId).emit('newMessage', {
+                        username: systemMessage.username,
+                        message: systemMessage.message,
+                        time: systemMessage.time,
+                        seed: systemMessage.seed
+                    });
+                }
+
+                console.log('[Redis] FLUSHDB completed');
+            }
+        }
+    } catch (err) {
+        console.error('[Redis] Monthly reset failed', err);
+    }
 
     const nextMonth = new Date(
         jstNow.getFullYear(),
@@ -99,9 +97,8 @@ function scheduleMonthlyReset() {
 
     const delay = nextMonth.getTime() - jstNow.getTime();
 
-    setTimeout(async () => {
-        await resetRedisIfMonthChanged().catch(console.error);
-        scheduleMonthlyReset();
+    setTimeout(() => {
+        monthlyRedisReset(io);
     }, delay);
 }
 
@@ -484,8 +481,7 @@ app.get('*', function (req, res) {
 /* ---------------- サーバー起動 ---------------- */
 (async function () {
     try {
-        await resetRedisIfMonthChanged();
-        scheduleMonthlyReset();
+        monthlyRedisReset(io);
     } catch (err) {
         console.error('Token reset failed', err);
     } finally {
