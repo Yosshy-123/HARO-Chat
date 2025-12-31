@@ -3,6 +3,7 @@ const http = require('http');
 const { Server: SocketIOServer } = require('socket.io');
 const crypto = require('crypto');
 const Redis = require('ioredis');
+const cron = require('node-cron');
 
 try {
     require('dotenv').config();
@@ -85,18 +86,6 @@ async function monthlyRedisReset(io) {
     } catch (err) {
         console.error('[Redis] Monthly reset failed', err);
     }
-
-    const nextMonth = new Date(
-        jstNow.getFullYear(),
-        jstNow.getMonth() + 1,
-        1, 0, 0, 0
-    );
-
-    const delay = nextMonth.getTime() - jstNow.getTime();
-
-    setTimeout(() => {
-        monthlyRedisReset(io);
-    }, delay);
 }
 
 const app = express();
@@ -478,9 +467,15 @@ app.get('*', function (req, res) {
 /* ---------------- サーバー起動 ---------------- */
 (async function () {
     try {
-        monthlyRedisReset(io);
+        await monthlyRedisReset(io);
+        cron.schedule('0 0 0 1 * *', async () => {
+            console.log('[Cron] Running monthly Redis reset...');
+            await monthlyRedisReset(io);
+        }, {
+            timezone: 'Asia/Tokyo'
+        });
     } catch (err) {
-        console.error('Token reset failed', err);
+        console.error('Monthly reset check failed', err);
     } finally {
         httpServer.listen(PORT, function () {
             console.log(`Server running on port ${PORT}`);
