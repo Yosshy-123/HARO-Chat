@@ -36,53 +36,35 @@ async function monthlyRedisReset(io) {
 
     try {
         const savedMonth = await redisClient.get('system:current_month');
+        if (savedMonth === currentMonth) return;
 
-        if (savedMonth !== currentMonth) {
-            const lockKey = 'system:reset_lock';
-            const locked = await redisClient.set(lockKey, '1', 'NX', 'EX', 30);
+        const lockKey = 'system:reset_lock';
+        const locked = await redisClient.set(lockKey, '1', 'NX', 'EX', 30);
+        if (!locked) return;
 
-            if (locked) {
-                console.log('[Redis] Month changed, FLUSHDB start');
+        console.log('[Redis] Month changed, flushdb start');
 
-                const keys = await redisClient.keys('messages:*');
-                const targetRoomIds = [];
+        const keys = await redisClient.keys('messages:*');
+        const targetRoomIds = keys.map(k => k.replace('messages:', ''));
 
-                for (const key of keys) {
-                    const messages = await redisClient.lrange(key, 0, -1);
+        await redisClient.flushdb();
 
-                    const hasUserMessage = messages.some(m => {
-                        try {
-                            const parsed = JSON.parse(m);
-                            return parsed.clientId && parsed.clientId !== 'system';
-                        } catch {
-                            return false;
-                        }
-                    });
+        await redisClient.set('system:current_month', currentMonth);
 
-                    if (hasUserMessage) {
-                        targetRoomIds.push(key.replace('messages:', ''));
-                    }
-                }
+        const systemMessage = createSystemMessage(
+            '<strong>メンテナンスのためデータベースがリセットされました</strong>'
+        );
 
-                await redisClient.flushdb();
-                await redisClient.set('system:current_month', currentMonth);
-
-                const systemMessage = createSystemMessage(
-                    '<strong>メンテナンスのためデータベースがリセットされました</strong>'
-                );
-
-                for (const roomId of targetRoomIds) {
-                    io.to(roomId).emit('newMessage', {
-                        username: systemMessage.username,
-                        message: systemMessage.message,
-                        time: systemMessage.time,
-                        seed: systemMessage.seed
-                    });
-                }
-
-                console.log('[Redis] FLUSHDB completed');
-            }
+        for (const roomId of targetRoomIds) {
+            io.to(roomId).emit('newMessage', {
+                username: systemMessage.username,
+                message: systemMessage.message,
+                time: systemMessage.time,
+                seed: systemMessage.seed
+            });
         }
+
+        console.log('[Redis] Flushdb completed');
     } catch (err) {
         console.error('[Redis] Monthly reset failed', err);
     }
@@ -231,11 +213,7 @@ app.get('/api/messages/:roomId', async function (req, res) {
 });
 
 app.post('/api/messages', async function (req, res) {
-    const username = req.body.username;
-    const message = req.body.message;
-    const token = req.body.token;
-    const seed = req.body.seed;
-    const roomId = req.body.roomId;
+    const { username, message, token, seed, roomId } = req.body;
 
     if (!roomId) return res.status(400).json({ error: 'roomId required' });
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(roomId)) return res.status(400).json({ error: 'invalid roomId' });
@@ -252,7 +230,6 @@ app.post('/api/messages', async function (req, res) {
     }
 
     const now = Date.now();
-
     const rateLimitKey = `ratelimit:msg:${clientId}`;
     const lastTimestampKey = `msg:last_ts:${clientId}`;
     const lastIntervalKey = `msg:last_interval:${clientId}`;
@@ -292,7 +269,6 @@ app.post('/api/messages', async function (req, res) {
     if (lastSent && now - Number(lastSent) < 1000) {
         return res.status(429).json({ error: '送信には1秒以上間隔をあけてください' });
     }
-
     await redisClient.set(rateLimitKey, now, 'PX', 2000);
 
     const storedMessage = {
@@ -305,9 +281,12 @@ app.post('/api/messages', async function (req, res) {
 
     try {
         const roomKey = `messages:${roomId}`;
-
-        await redisClient.rpush(roomKey, JSON.stringify(storedMessage));
-        await redisClient.ltrim(roomKey, -100, -1);
+        const luaScript = `
+            redis.call('RPUSH', KEYS[1], ARGV[1])
+            redis.call('LTRIM', KEYS[1], -100, -1)
+            return 1
+        `;
+        await redisClient.eval(luaScript, 1, roomKey, JSON.stringify(storedMessage));
 
         io.to(roomId).emit('newMessage', {
             username: storedMessage.username,
